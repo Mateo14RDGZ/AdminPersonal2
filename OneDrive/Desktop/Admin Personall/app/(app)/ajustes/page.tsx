@@ -99,9 +99,23 @@ export default function AjustesPage() {
 
       <CardsSection />
 
-      <AutomationSection />
-
-      <ImportSection />
+      <details className="app-card group overflow-hidden">
+        <summary className="pressable flex min-h-16 cursor-pointer list-none items-center justify-between px-4 py-3 font-medium marker:hidden">
+          <span>
+            <span className="block">Automatizaciones y respaldo</span>
+            <span className="mt-0.5 block text-xs font-normal text-[var(--color-muted)]">
+              Siri, importaciÃ³n y copia de tus datos
+            </span>
+          </span>
+          <span className="text-lg text-[var(--color-muted)] transition-transform group-open:rotate-45">
+            +
+          </span>
+        </summary>
+        <div className="space-y-6 border-t border-[var(--color-border)] px-4 py-5">
+          <AutomationSection />
+          <ImportSection />
+        </div>
+      </details>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
