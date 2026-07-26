@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { IconBrandApple, IconCopy, IconKey, IconTrash } from "@tabler/icons-react";
+import {
+  buildIosShortcutPrompt,
+  PARSE_TRANSACTION_ENDPOINT,
+  shortcutRequestJson,
+} from "@/lib/shortcut-prompt";
 
 type TokenInfo = {
   id: string;
@@ -48,8 +53,9 @@ export function AutomationSection() {
     await load();
   };
 
-  const endpoint =
-    "https://la-pesadilla-finanzas.vercel.app/api/parse-transaction";
+  const endpoint = PARSE_TRANSACTION_ENDPOINT;
+  const authorization = revealed ? `Bearer ${revealed}` : "";
+  const requestJson = shortcutRequestJson();
 
   return (
     <section className="space-y-3">
@@ -85,6 +91,13 @@ export function AutomationSection() {
         >
           <IconCopy size={18} /> Copiar endpoint
         </button>
+        <button
+          type="button"
+          onClick={() => void copy(requestJson, "JSON")}
+          className="pressable flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] text-sm font-medium"
+        >
+          <IconCopy size={18} /> Copiar JSON
+        </button>
       </div>
 
       {revealed ? (
@@ -100,6 +113,23 @@ export function AutomationSection() {
           >
             <IconCopy size={17} /> Copiar token
           </button>
+          <button
+            type="button"
+            onClick={() => void copy(authorization, "Header Authorization")}
+            className="pressable mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-amber-500/40 text-sm font-semibold"
+          >
+            <IconCopy size={17} /> Copiar Authorization completo
+          </button>
+          <button
+            type="button"
+            onClick={() => void copy(buildIosShortcutPrompt(revealed), "Prompt para Atajos")}
+            className="pressable mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] text-sm font-semibold text-white"
+          >
+            <IconCopy size={17} /> Copiar prompt para crear el Atajo
+          </button>
+          <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
+            El prompt incluye este token solo mientras se muestra en pantalla. No se guarda en el dispositivo ni en el repositorio.
+          </p>
         </div>
       ) : null}
 
@@ -140,4 +170,3 @@ export function AutomationSection() {
     </section>
   );
 }
-
