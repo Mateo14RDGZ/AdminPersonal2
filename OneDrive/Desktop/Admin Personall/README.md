@@ -6,7 +6,7 @@ PWA privada de un solo usuario para registrar gastos en iPhone (Safari), con ing
 
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS 4 (`darkMode` vía `prefers-color-scheme`)
-- Supabase (Postgres, Auth con Apple, RLS)
+- Supabase (Postgres, acceso sin contraseña por email, RLS)
 - PWA (`@ducanh2912/next-pwa` + service worker custom para push)
 - Web Push con claves VAPID (`web-push`)
 - Deploy en Vercel
@@ -15,7 +15,6 @@ PWA privada de un solo usuario para registrar gastos en iPhone (Safari), con ing
 
 - Node.js 20+
 - Proyecto en [Supabase](https://supabase.com)
-- Cuenta Apple Developer (para Sign in with Apple en Supabase)
 
 ## Variables de entorno
 
@@ -59,7 +58,8 @@ Abrí [http://localhost:3000](http://localhost:3000).
    - `http://localhost:3000/auth/callback`
    - `https://tu-dominio.vercel.app/auth/callback`
 
-4. En **Authentication → Providers**, activá **Apple** y configurá sus credenciales.
+4. En **Authentication → Providers**, mantené habilitado **Email**. El acceso
+   utiliza un enlace mágico sin contraseña.
 
 5. Tras el primer login, copiá tu `user id` desde **Authentication → Users** y ponelo en `INGEST_USER_ID`.
 
