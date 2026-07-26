@@ -180,7 +180,17 @@ export default function InicioPage() {
             {today.slice(0, 5).map((transaction) => (
               <li key={transaction.id} className="app-card flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{transaction.merchant || transaction.categories?.name || "Movimiento"}</p>
+                  <p className="truncate font-medium">
+                    {transaction.merchant ||
+                      transaction.categories?.name ||
+                      (transaction.type === "INCOME"
+                        ? "Ingreso"
+                        : transaction.type === "TRANSFER"
+                          ? "Transferencia"
+                          : transaction.type === "REFUND"
+                            ? "Devolución"
+                            : "Gasto")}
+                  </p>
                   <p className="text-xs text-[var(--color-muted)]">{sourceLabel(transaction.source)} · {formatTime(transaction.occurred_at)}</p>
                 </div>
                 <span className="shrink-0 font-semibold tabular-nums">{formatCurrency(Number(transaction.amount), transaction.currency)}</span>
