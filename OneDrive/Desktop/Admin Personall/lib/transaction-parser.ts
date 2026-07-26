@@ -137,6 +137,10 @@ function parseAmount(text: string): number | null {
 }
 
 function detectType(text: string): TransactionType {
+  if (/\b(transferred|transfer|moved|move)\b/.test(text)) return "TRANSFER";
+  if (/\b(i lent|lent)\b/.test(text)) return "LOAN_GIVEN";
+  if (/\b(paid me back|refunded|refund)\b/.test(text)) return "REFUND";
+  if (/\b(i received|received|salary|income|got paid)\b/.test(text)) return "INCOME";
   if (/\b(transferi|pase|transferencia)\b/.test(text)) return "TRANSFER";
   if (/\b(preste|prestamo dado)\b/.test(text)) return "LOAN_GIVEN";
   if (/\b(me devolvio|me devolvieron|reembolso|devolucion)\b/.test(text))
@@ -147,6 +151,9 @@ function detectType(text: string): TransactionType {
 }
 
 function detectCurrency(text: string, fallback: string): string {
+  if (/\b(dollar|dollars)\b/.test(text)) return "USD";
+  if (/\b(argentine peso|argentine pesos)\b/.test(text)) return "ARS";
+  if (/\b(uruguayan peso|uruguayan pesos)\b/.test(text)) return "UYU";
   if (/\b(dolar|dolares|usd)\b|us\$/.test(text)) return "USD";
   if (/\b(euro|euros|eur)\b|€/.test(text)) return "EUR";
   if (/\b(real|reales|brl)\b/.test(text)) return "BRL";
@@ -159,32 +166,34 @@ function detectCurrency(text: string, fallback: string): string {
 function detectDate(text: string, explicit?: string | null): string {
   if (explicit) return new Date(explicit).toISOString();
   const date = new Date();
-  if (/\bayer\b/.test(text)) date.setDate(date.getDate() - 1);
+  if (/\b(ayer|yesterday)\b/.test(text)) date.setDate(date.getDate() - 1);
   return date.toISOString();
 }
 
 function detectCategory(text: string): string | null {
   const rules: Array<[RegExp, string]> = [
     [/\b(nafta|combustible|ancap)\b/, "Combustible"],
-    [/\b(supermercado|tata|ta-ta|devoto|disco)\b/, "Supermercado"],
-    [/\b(panaderia|comida|restaurant|restaurante|mcdonald)\b/, "Comida"],
-    [/\b(uber|taxi|boleto|omnibus|transporte)\b/, "Transporte"],
-    [/\b(antel|telefono|internet)\b/, "Servicios"],
+    [/\b(supermercado|supermarket|tata|ta-ta|devoto|disco)\b/, "Supermercado"],
+    [/\b(panaderia|bakery|comida|food|restaurant|restaurante|mcdonald)\b/, "Comida"],
+    [/\b(uber|taxi|boleto|bus|omnibus|transporte|transport)\b/, "Transporte"],
+    [/\b(antel|telefono|phone|internet)\b/, "Servicios"],
     [/\b(netflix|spotify|streaming|apple)\b/, "Ocio"],
-    [/\b(farmacia|medico|salud)\b/, "Salud"],
+    [/\b(farmacia|pharmacy|medico|doctor|salud|health)\b/, "Salud"],
   ];
   return rules.find(([pattern]) => pattern.test(text))?.[1] ?? null;
 }
 
 function extractAccountHints(text: string, type: TransactionType) {
   if (type === "TRANSFER") {
-    const match = text.match(/\bde\s+(.+?)\s+a\s+(.+?)(?:$|\s+(?:ayer|hoy))/);
+    const match = text.match(/\bde\s+(.+?)\s+a\s+(.+?)(?:$|\s+(?:ayer|hoy))/)
+      ?? text.match(/\bfrom\s+(.+?)\s+to\s+(.+?)(?:$|\s+(?:yesterday|today))/);
     return {
       accountHint: match?.[1]?.trim() ?? null,
       destinationAccountHint: match?.[2]?.trim() ?? null,
     };
   }
-  const match = text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u);
+  const match = text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u)
+    ?? text.match(/\b(?:with|using)\s+([\p{L}\p{N} -]+)$/u);
   return {
     accountHint: match?.[1]?.trim() ?? null,
     destinationAccountHint: null,
@@ -198,7 +207,7 @@ function extractMerchant(text: string, type: TransactionType): string | null {
   );
   if (inMatch?.[1]) return titleCase(inMatch[1]);
   const itemMatch = text.match(
-    /\b(?:compre|pague|gaste)\s+(?:un |una |el |la )?([\p{L} -]+?)\s+(?:por|de)\s+/u
+    /\b(?:compre|pague|gaste|i bought|i paid|i spent)\s+(?:un |una |el |la |a |an )?([\p{L} -]+?)\s+(?:por|de|for)\s+/u
   );
   return itemMatch?.[1] ? titleCase(itemMatch[1]) : null;
 }
@@ -226,7 +235,7 @@ export class LocalTransactionParser {
     let confidence = amount ? 0.72 : 0.35;
     if (merchant || categoryHint) confidence += 0.1;
     if (hints.accountHint || input.defaultAccountId) confidence += 0.08;
-    if (type !== "EXPENSE" || /\b(gaste|pague|compre|anota)\b/.test(text))
+    if (type !== "EXPENSE" || /\b(gaste|pague|compre|anota|i spent|i paid|i bought)\b/.test(text))
       confidence += 0.06;
 
     return {
@@ -251,4 +260,3 @@ export interface TransactionParser {
 }
 
 export const transactionParser: TransactionParser = new LocalTransactionParser();
-

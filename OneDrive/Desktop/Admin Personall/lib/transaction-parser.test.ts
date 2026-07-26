@@ -13,6 +13,12 @@ describe("LocalTransactionParser", () => {
     ["Gasté quinientos pesos", "EXPENSE", 500, "UYU"],
     ["Me devolvieron 300", "REFUND", 300, "UYU"],
     ["Presté 500 a Juan", "LOAN_GIVEN", 500, "UYU"],
+    ["I spent 850 pesos on fuel using Itau", "EXPENSE", 850, "UYU"],
+    ["I bought a perfume for 2890 pesos", "EXPENSE", 2890, "UYU"],
+    ["I received 38600 pesos salary", "INCOME", 38600, "UYU"],
+    ["I transferred 200 dollars from Itau to Scotia", "TRANSFER", 200, "USD"],
+    ["I lent 500 pesos to Juan", "LOAN_GIVEN", 500, "UYU"],
+    ["Juan paid me back 300 pesos", "REFUND", 300, "UYU"],
   ] as const;
 
   for (const [text, type, amount, currency] of cases) {
@@ -24,4 +30,3 @@ describe("LocalTransactionParser", () => {
     });
   }
 });
-
