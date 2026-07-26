@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { quickTransactionSchema } from "@/lib/validation";
+import { databaseTransactionSource } from "@/lib/database-source";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -60,13 +61,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       p_description: parsed.data.description ?? null,
       p_notes: parsed.data.notes ?? parsed.data.note ?? null,
       p_occurred_at: parsed.data.occurred_at ?? new Date().toISOString(),
-      p_source: parsed.data.source,
+      p_source: databaseTransactionSource(parsed.data.source),
       p_status: "CONFIRMED",
       p_idempotency_key: parsed.data.idempotency_key ?? null,
     }
   );
   if (createError) {
-    return NextResponse.json({ error: createError.message }, { status: 500 });
+    return NextResponse.json({ error: createError.message }, { status: 422 });
   }
   await supabase
     .from("pending_transaction_confirmations")
@@ -75,4 +76,3 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .eq("user_id", user.id);
   return NextResponse.json({ success: true, transaction: data });
 }
-

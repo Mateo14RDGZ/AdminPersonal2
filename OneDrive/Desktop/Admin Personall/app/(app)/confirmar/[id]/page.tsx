@@ -25,6 +25,7 @@ export default function ConfirmarPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -53,7 +54,9 @@ export default function ConfirmarPage() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     setError("");
+    setSaving(true);
     const response = await fetch(`/api/confirmations/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -70,6 +73,7 @@ export default function ConfirmarPage() {
         idempotency_key: crypto.randomUUID(),
       }),
     });
+    setSaving(false);
     if (!response.ok) {
       setError("Revisá el monto, la moneda y la cuenta.");
       return;
@@ -171,6 +175,7 @@ export default function ConfirmarPage() {
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <button
           type="submit"
+          disabled={saving}
           className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white"
         >
           Confirmar y guardar
@@ -179,4 +184,3 @@ export default function ConfirmarPage() {
     </div>
   );
 }
-

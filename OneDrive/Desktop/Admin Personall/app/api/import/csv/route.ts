@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { currencySchema, transactionTypeSchema } from "@/lib/validation";
+import { databaseTransactionSource } from "@/lib/database-source";
 
 const schema = z.object({
   fileName: z.string().trim().min(1).max(200),
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
         p_account_id: parsed.data.accountId,
         p_merchant: row.merchant ?? null,
         p_occurred_at: row.occurredAt,
-        p_source: "import",
+        p_source: databaseTransactionSource("import"),
         p_status: "CONFIRMED",
         p_idempotency_key: `import:${batch.id}:${index}`,
       }
@@ -86,4 +87,3 @@ export async function POST(request: NextRequest) {
     failed,
   });
 }
-

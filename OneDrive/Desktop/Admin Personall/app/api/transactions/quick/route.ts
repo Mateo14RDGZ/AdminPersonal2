@@ -3,6 +3,7 @@ import { authenticateAutomationToken } from "@/lib/automation-auth";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { quickTransactionSchema } from "@/lib/validation";
+import { databaseTransactionSource } from "@/lib/database-source";
 
 export async function POST(request: NextRequest) {
   const parsed = quickTransactionSchema.safeParse(await request.json());
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     p_description: parsed.data.description ?? null,
     p_notes: parsed.data.notes ?? parsed.data.note ?? null,
     p_occurred_at: parsed.data.occurred_at ?? new Date().toISOString(),
-    p_source: parsed.data.source,
+    p_source: databaseTransactionSource(parsed.data.source),
     p_status: parsed.data.status,
     p_idempotency_key: parsed.data.idempotency_key ?? null,
   };
@@ -67,4 +68,3 @@ export async function POST(request: NextRequest) {
   }
   return NextResponse.json({ success: true, transaction: data });
 }
-

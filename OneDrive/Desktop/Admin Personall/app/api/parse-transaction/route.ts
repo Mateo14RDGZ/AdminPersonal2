@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { transactionParser, normalizeText } from "@/lib/transaction-parser";
 import { parseTransactionSchema } from "@/lib/validation";
 import { formatCurrency } from "@/lib/format";
+import { databaseTransactionSource } from "@/lib/database-source";
 
 export async function POST(request: NextRequest) {
   let json: unknown;
@@ -163,7 +164,7 @@ export async function POST(request: NextRequest) {
     p_merchant: interpretation.merchant,
     p_description: interpretation.description,
     p_occurred_at: interpretation.occurredAt,
-    p_source: interpretation.source,
+    p_source: databaseTransactionSource(interpretation.source),
     p_status: "CONFIRMED",
     p_idempotency_key: parsedBody.data.idempotencyKey ?? null,
     p_confidence: interpretation.confidence,
@@ -198,4 +199,3 @@ export async function POST(request: NextRequest) {
     )} registrado${interpretation.merchant ? ` en ${interpretation.merchant}` : ""}`,
   });
 }
-
