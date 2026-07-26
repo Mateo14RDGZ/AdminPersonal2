@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { currencySchema, transactionTypeSchema } from "@/lib/validation";
 import { databaseTransactionSource } from "@/lib/database-source";
 
@@ -47,10 +48,12 @@ export async function POST(request: NextRequest) {
   let imported = 0;
   let duplicates = 0;
   let failed = 0;
+  const service = createServiceClient();
   for (const [index, row] of parsed.data.rows.entries()) {
-    const { data, error: rowError } = await supabase.rpc(
-      "create_financial_transaction",
+    const { data, error: rowError } = await service.rpc(
+      "create_financial_transaction_service",
       {
+        p_user_id: user.id,
         p_type: row.type,
         p_amount: row.amount,
         p_currency: row.currency,

@@ -3,6 +3,7 @@ import { authenticateAutomationToken } from "@/lib/automation-auth";
 import { requireUser } from "@/lib/api-auth";
 import { checkRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { transactionParser, normalizeText } from "@/lib/transaction-parser";
 import { parseTransactionSchema } from "@/lib/validation";
 import { formatCurrency } from "@/lib/format";
@@ -170,12 +171,11 @@ export async function POST(request: NextRequest) {
     p_confidence: interpretation.confidence,
     p_raw_input: interpretation.rawInput,
   };
-  const { data: transaction, error: createError } = bearer
-    ? await supabase.rpc("create_financial_transaction_service", {
-        p_user_id: userId,
-        ...rpcArgs,
-      })
-    : await supabase.rpc("create_financial_transaction", rpcArgs);
+  const service = createServiceClient();
+  const { data: transaction, error: createError } = await service.rpc(
+    "create_financial_transaction_service",
+    { p_user_id: userId, ...rpcArgs }
+  );
 
   if (createError) {
     return NextResponse.json({ error: createError.message }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { quickTransactionSchema } from "@/lib/validation";
 import { databaseTransactionSource } from "@/lib/database-source";
 
@@ -47,19 +48,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!pending) {
     return NextResponse.json({ error: "Confirmación no disponible" }, { status: 404 });
   }
-  const { data, error: createError } = await supabase.rpc(
-    "create_financial_transaction",
+  const service = createServiceClient();
+  const { data, error: createError } = await service.rpc(
+    "create_financial_transaction_service",
     {
+      p_user_id: user.id,
       p_type: parsed.data.type,
       p_amount: parsed.data.amount,
       p_currency: parsed.data.currency,
       p_account_id: parsed.data.account_id,
       p_destination_account_id: parsed.data.destination_account_id ?? null,
-      p_credit_card_id: parsed.data.credit_card_id ?? null,
       p_category_id: parsed.data.category_id ?? null,
       p_merchant: parsed.data.merchant ?? null,
       p_description: parsed.data.description ?? null,
-      p_notes: parsed.data.notes ?? parsed.data.note ?? null,
       p_occurred_at: parsed.data.occurred_at ?? new Date().toISOString(),
       p_source: databaseTransactionSource(parsed.data.source),
       p_status: "CONFIRMED",
