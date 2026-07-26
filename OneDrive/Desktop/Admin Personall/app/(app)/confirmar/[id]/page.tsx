@@ -75,6 +75,11 @@ export default function ConfirmarPage() {
     });
     setSaving(false);
     if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      if (typeof body?.error === "string") {
+        setError(body.error);
+        return;
+      }
       setError("Revisá el monto, la moneda y la cuenta.");
       return;
     }
