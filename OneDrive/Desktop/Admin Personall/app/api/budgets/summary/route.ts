@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         .lte("occurred_at", to),
       supabase
         .from("financial_entries")
-        .select("kind, amount, is_recurring, occurred_at")
+        .select("kind, amount, currency, is_recurring, occurred_at")
         .eq("user_id", user.id)
         .lte("occurred_at", monthEnd),
       supabase
@@ -73,12 +73,51 @@ export async function GET(request: NextRequest) {
   const entriesThisMonth = (financeResult.data ?? []).filter(
     (entry) => entry.is_recurring || entry.occurred_at >= monthStart
   );
-  const totalIncome = entriesThisMonth
-    .filter((entry) => entry.kind === "income")
-    .reduce((sum, entry) => sum + Number(entry.amount), 0);
-  const fixedSavings = entriesThisMonth
-    .filter((entry) => entry.kind === "saving")
-    .reduce((sum, entry) => sum + Number(entry.amount), 0);
+  const totalsByCurrency = new Map<
+    string,
+    { currency: string; income: number; savings: number; spent: number }
+  >();
+  const ensureCurrency = (currency: string) => {
+    const existing = totalsByCurrency.get(currency);
+    if (existing) return existing;
+    const created = { currency, income: 0, savings: 0, spent: 0 };
+    totalsByCurrency.set(currency, created);
+    return created;
+  };
+
+  ensureCurrency("UYU").spent = totalSpent;
+  for (const entry of entriesThisMonth) {
+    const totals = ensureCurrency(entry.currency || "UYU");
+    if (entry.kind === "income") totals.income += Number(entry.amount);
+    else totals.savings += Number(entry.amount);
+  }
+
+  const balances = [...totalsByCurrency.values()]
+    .map((totals) => ({
+      ...totals,
+      available: totals.income - totals.savings - totals.spent,
+    }))
+    .sort((first, second) => {
+      const priority = ["UYU", "USD"];
+      const firstIndex = priority.indexOf(first.currency);
+      const secondIndex = priority.indexOf(second.currency);
+      if (firstIndex !== -1 || secondIndex !== -1) {
+        return (
+          (firstIndex === -1 ? priority.length : firstIndex) -
+          (secondIndex === -1 ? priority.length : secondIndex)
+        );
+      }
+      return first.currency.localeCompare(second.currency);
+    });
+  const primaryTotals = balances.find(
+    (totals) => totals.currency === "UYU"
+  ) ?? {
+    currency: "UYU",
+    income: 0,
+    savings: 0,
+    spent: totalSpent,
+    available: -totalSpent,
+  };
 
   const byCategory = (categoryResult.data ?? []).map((category) => {
     const spent = spentByCategory.get(category.id) ?? 0;
@@ -101,10 +140,11 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(
     {
       month,
-      totalIncome,
-      fixedSavings,
+      totalIncome: primaryTotals.income,
+      fixedSavings: primaryTotals.savings,
       totalSpent,
-      availableBudget: totalIncome - fixedSavings - totalSpent,
+      availableBudget: primaryTotals.available,
+      balances,
       uncategorized: spentByCategory.get(null) ?? 0,
       categories: byCategory,
       today: todayResult.data ?? [],

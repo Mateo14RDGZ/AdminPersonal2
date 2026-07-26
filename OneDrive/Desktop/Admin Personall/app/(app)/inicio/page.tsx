@@ -24,6 +24,13 @@ type Summary = {
   fixedSavings: number;
   totalSpent: number;
   availableBudget: number;
+  balances: {
+    currency: string;
+    income: number;
+    savings: number;
+    spent: number;
+    available: number;
+  }[];
   today: TransactionWithCategory[];
   categories: {
     category_id: string;
@@ -86,6 +93,22 @@ export default function InicioPage() {
     summary?.categories.filter((category) => category.budget != null) ?? [];
   const today = summary?.today ?? [];
   const available = summary?.availableBudget ?? 0;
+  const balances = summary?.balances ?? [
+    {
+      currency: "UYU",
+      income: summary?.totalIncome ?? 0,
+      savings: summary?.fixedSavings ?? 0,
+      spent: summary?.totalSpent ?? 0,
+      available,
+    },
+  ];
+  const primaryBalance =
+    balances.find((balance) => balance.currency === "UYU") ?? balances[0];
+  const secondaryBalances = balances.filter(
+    (balance) =>
+      balance.currency !== "UYU" &&
+      (balance.income !== 0 || balance.savings !== 0 || balance.spent !== 0)
+  );
 
   return (
     <div className="space-y-7 pb-5">
@@ -98,7 +121,7 @@ export default function InicioPage() {
             available < 0 ? "text-red-500" : ""
           }`}
         >
-          {formatCurrency(available)}
+          {formatCurrency(primaryBalance?.available ?? available, "UYU")}
         </p>
       </header>
 
@@ -108,7 +131,7 @@ export default function InicioPage() {
             <div>
               <p className="text-sm text-white/70">Presupuesto total</p>
               <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-                {formatCurrency(summary?.totalIncome ?? 0)}
+                {formatCurrency(primaryBalance?.income ?? 0, "UYU")}
               </p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
@@ -123,7 +146,7 @@ export default function InicioPage() {
                 Ahorro reservado
               </div>
               <p className="mt-1 font-semibold tabular-nums">
-                {formatCurrency(summary?.fixedSavings ?? 0)}
+                {formatCurrency(primaryBalance?.savings ?? 0, "UYU")}
               </p>
             </div>
             <div className="rounded-2xl bg-black/10 px-3.5 py-3 backdrop-blur">
@@ -132,7 +155,7 @@ export default function InicioPage() {
                 Gastado
               </div>
               <p className="mt-1 font-semibold tabular-nums">
-                {formatCurrency(summary?.totalSpent ?? 0)}
+                {formatCurrency(primaryBalance?.spent ?? 0, "UYU")}
               </p>
             </div>
           </div>
@@ -158,6 +181,47 @@ export default function InicioPage() {
           <span className="text-lg text-[var(--color-muted)]">›</span>
         </Link>
       </section>
+
+      {secondaryBalances.length > 0 ? (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="section-label">Otras monedas</h2>
+            <span className="text-xs text-[var(--color-muted)]">
+              Sin conversión
+            </span>
+          </div>
+          <div className="space-y-2">
+            {secondaryBalances.map((balance) => (
+              <div
+                key={balance.currency}
+                className="app-card grid grid-cols-[1fr_auto] items-center gap-3 p-4"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold tracking-wide text-[var(--color-muted)]">
+                    {balance.currency}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    Ahorro reservado{" "}
+                    <span className="font-semibold tabular-nums">
+                      {formatCurrency(balance.savings, balance.currency)}
+                    </span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-[var(--color-muted)]">Disponible</p>
+                  <p
+                    className={`mt-1 font-semibold tabular-nums ${
+                      balance.available < 0 ? "text-red-500" : ""
+                    }`}
+                  >
+                    {formatCurrency(balance.available, balance.currency)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {withBudget.length > 0 ? (
         <section className="space-y-3">
@@ -189,8 +253,8 @@ export default function InicioPage() {
                       </span>
                     </div>
                     <span className="shrink-0 text-xs text-[var(--color-muted)]">
-                      {formatCurrency(category.spent)} /{" "}
-                      {formatCurrency(category.budget ?? 0)}
+                      {formatCurrency(category.spent, "UYU")} /{" "}
+                      {formatCurrency(category.budget ?? 0, "UYU")}
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
@@ -251,7 +315,7 @@ export default function InicioPage() {
                   </p>
                 </div>
                 <span className="amount-lg ml-3 shrink-0">
-                  {formatCurrency(Number(transaction.amount))}
+                  {formatCurrency(Number(transaction.amount), "UYU")}
                 </span>
               </li>
             ))}

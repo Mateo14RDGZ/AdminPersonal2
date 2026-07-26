@@ -32,7 +32,7 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface-elevated)]/92 shadow-[0_-12px_35px_-30px_rgba(0,0,0,0.45)] backdrop-blur-2xl safe-bottom"
       aria-label="Principal"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-5 items-end px-1 pb-1.5 pt-1.5">
+      <div className="mx-auto grid w-full max-w-[430px] grid-cols-5 items-end px-1 pb-1.5 pt-1.5">
         {tabs.map((tab) => {
           const active = pathname === tab.href;
           const Icon = tab.icon;
@@ -56,7 +56,7 @@ export function BottomNav() {
               key={tab.href}
               href={tab.href}
               prefetch
-              className={`pressable relative flex min-w-0 flex-col items-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10px] font-medium ${
+              className={`pressable relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 text-[11px] font-medium ${
                 active
                   ? "text-[var(--color-accent)]"
                   : "text-[var(--color-muted)]"

@@ -26,10 +26,14 @@
 @layer base {
   html {
     color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply bg-[var(--color-surface)] text-[var(--color-foreground)] font-sans antialiased;
+    min-width: 320px;
+    min-height: 100dvh;
     overscroll-behavior-y: contain;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
@@ -46,6 +50,13 @@
   button,
   a {
     touch-action: manipulation;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 }
 
@@ -79,6 +90,7 @@
 
   .app-input {
     width: 100%;
+    min-height: 50px;
     border: 1px solid var(--color-border);
     border-radius: 16px;
     background: transparent;
@@ -173,11 +185,55 @@
   }
 
   .safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(env(safe-area-inset-top, 0px), 6px);
   }
 
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  }
+
+  .tap-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sheet-panel {
+    max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), 12px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .currency-tabs {
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+    overflow-x: auto;
+    padding: 0.25rem;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--color-border) 52%, transparent);
+    scrollbar-width: none;
+  }
+
+  .currency-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .currency-tab {
+    min-width: 64px;
+    min-height: 40px;
+    flex: 1 0 auto;
+    border-radius: 11px;
+    padding: 0.5rem 0.85rem;
+    color: var(--color-muted);
+    font-size: 0.8125rem;
+    font-weight: 650;
+  }
+
+  .currency-tab-active {
+    background: var(--color-surface-elevated);
+    color: var(--color-foreground);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   }
 
   .amount-xl {
@@ -254,5 +310,15 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 374px) {
+  .amount-xl {
+    font-size: 1.875rem;
+  }
+
+  .app-card {
+    border-radius: 16px;
   }
 }

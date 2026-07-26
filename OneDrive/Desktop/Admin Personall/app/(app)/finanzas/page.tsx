@@ -12,10 +12,15 @@ import {
 } from "@tabler/icons-react";
 import { EmptyState } from "@/components/empty-state";
 import { createClient } from "@/lib/supabase/client";
-import { formatCurrency, monthKey } from "@/lib/format";
+import {
+  formatCurrency,
+  monthKey,
+  SUPPORTED_CURRENCIES,
+} from "@/lib/format";
 import type { FinancialEntry } from "@/lib/database.types";
 
 type EntryKind = "income" | "saving";
+type CurrencyTotal = { income: number; saving: number };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -28,6 +33,8 @@ export default function FinanzasPage() {
   const [kind, setKind] = useState<EntryKind>("income");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("UYU");
+  const [summaryCurrency, setSummaryCurrency] = useState("UYU");
   const [occurredAt, setOccurredAt] = useState(today());
   const [isRecurring, setIsRecurring] = useState(false);
 
@@ -46,28 +53,44 @@ export default function FinanzasPage() {
     void load();
   }, [load]);
 
-  const totals = useMemo(() => {
+  const totalsByCurrency = useMemo(() => {
     const currentMonth = monthKey();
-    const applicable = entries.filter(
-      (entry) =>
-        entry.occurred_at <= today() &&
-        (entry.is_recurring || entry.occurred_at.startsWith(currentMonth))
-    );
+    const totals = new Map<string, CurrencyTotal>();
 
-    return {
-      income: applicable
-        .filter((entry) => entry.kind === "income")
-        .reduce((sum, entry) => sum + Number(entry.amount), 0),
-      saving: applicable
-        .filter((entry) => entry.kind === "saving")
-        .reduce((sum, entry) => sum + Number(entry.amount), 0),
-    };
+    for (const entry of entries) {
+      if (
+        entry.occurred_at > today() ||
+        (!entry.is_recurring && !entry.occurred_at.startsWith(currentMonth))
+      ) {
+        continue;
+      }
+
+      const entryCurrency = entry.currency || "UYU";
+      const current = totals.get(entryCurrency) ?? { income: 0, saving: 0 };
+      current[entry.kind] += Number(entry.amount);
+      totals.set(entryCurrency, current);
+    }
+
+    return totals;
   }, [entries]);
+
+  const visibleCurrencies = useMemo(() => {
+    const configured = new Set(totalsByCurrency.keys());
+    configured.add("UYU");
+    configured.add("USD");
+    return SUPPORTED_CURRENCIES.filter(({ code }) => configured.has(code));
+  }, [totalsByCurrency]);
+
+  const totals = totalsByCurrency.get(summaryCurrency) ?? {
+    income: 0,
+    saving: 0,
+  };
 
   const openForm = (nextKind: EntryKind) => {
     setKind(nextKind);
     setName("");
     setAmount("");
+    setCurrency(nextKind === "saving" ? "USD" : "UYU");
     setOccurredAt(today());
     setIsRecurring(nextKind === "saving");
     setError("");
@@ -102,6 +125,7 @@ export default function FinanzasPage() {
         kind,
         name: name.trim(),
         amount: numericAmount,
+        currency,
         is_recurring: kind === "saving" ? true : isRecurring,
         occurred_at: occurredAt,
       })
@@ -115,6 +139,7 @@ export default function FinanzasPage() {
     }
 
     setEntries((current) => [data, ...current]);
+    setSummaryCurrency(currency);
     setSaving(false);
     setShowForm(false);
     window.dispatchEvent(new Event("finance-data-changed"));
@@ -141,8 +166,8 @@ export default function FinanzasPage() {
 
   return (
     <div className="space-y-6 pb-5">
-      <header className="page-enter flex items-start justify-between">
-        <div>
+      <header className="page-enter flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--color-muted)]">
             Plan mensual
           </p>
@@ -153,50 +178,76 @@ export default function FinanzasPage() {
         <button
           type="button"
           onClick={() => openForm("income")}
-          className="pressable flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/15"
+          className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/15"
           aria-label="Agregar movimiento"
         >
           <IconPlus size={23} />
         </button>
       </header>
 
-      <section className="page-enter-delay grid grid-cols-2 gap-3">
-        <div className="app-card p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <IconArrowUp size={19} />
-          </span>
-          <p className="mt-4 text-xs font-medium text-[var(--color-muted)]">
-            Entradas del mes
-          </p>
-          <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">
-            {formatCurrency(totals.income)}
-          </p>
+      <section className="page-enter-delay space-y-3">
+        <div
+          className="currency-tabs"
+          role="group"
+          aria-label="Moneda del resumen"
+        >
+          {visibleCurrencies.map(({ code }) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => setSummaryCurrency(code)}
+              className={`pressable currency-tab ${
+                summaryCurrency === code ? "currency-tab-active" : ""
+              }`}
+              aria-pressed={summaryCurrency === code}
+            >
+              {code}
+            </button>
+          ))}
         </div>
-        <div className="app-card p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-            <IconPigMoney size={19} />
-          </span>
-          <p className="mt-4 text-xs font-medium text-[var(--color-muted)]">
-            Ahorro fijo
-          </p>
-          <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">
-            {formatCurrency(totals.saving)}
-          </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="app-card min-w-0 p-4">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <IconArrowUp size={19} />
+            </span>
+            <p className="mt-4 text-xs font-medium text-[var(--color-muted)]">
+              Entradas del mes
+            </p>
+            <p className="mt-1 truncate text-xl font-semibold tracking-tight tabular-nums">
+              {formatCurrency(totals.income, summaryCurrency)}
+            </p>
+          </div>
+          <div className="app-card min-w-0 p-4">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <IconPigMoney size={19} />
+            </span>
+            <p className="mt-4 text-xs font-medium text-[var(--color-muted)]">
+              Ahorro reservado
+            </p>
+            <p className="mt-1 truncate text-xl font-semibold tracking-tight tabular-nums">
+              {formatCurrency(totals.saving, summaryCurrency)}
+            </p>
+          </div>
         </div>
+        <p className="px-1 text-xs leading-relaxed text-[var(--color-muted)]">
+          Cada moneda se calcula por separado. No convertimos ni mezclamos
+          pesos, dólares u otras monedas.
+        </p>
       </section>
 
       <section className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => openForm("income")}
-          className="pressable app-card flex items-center gap-3 p-4 text-left"
+          className="pressable app-card flex min-h-20 min-w-0 items-center gap-3 p-3 text-left min-[390px]:p-4"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <IconArrowDown size={21} />
           </span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-sm font-semibold">Nueva entrada</span>
-            <span className="block text-xs text-[var(--color-muted)]">
+            <span className="block text-xs leading-tight text-[var(--color-muted)]">
               Suma al presupuesto
             </span>
           </span>
@@ -204,15 +255,15 @@ export default function FinanzasPage() {
         <button
           type="button"
           onClick={() => openForm("saving")}
-          className="pressable app-card flex items-center gap-3 p-4 text-left"
+          className="pressable app-card flex min-h-20 min-w-0 items-center gap-3 p-3 text-left min-[390px]:p-4"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
             <IconPigMoney size={21} />
           </span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-sm font-semibold">Ahorro fijo</span>
-            <span className="block text-xs text-[var(--color-muted)]">
-              Reserva mensual
+            <span className="block text-xs leading-tight text-[var(--color-muted)]">
+              Elegí la moneda
             </span>
           </span>
         </button>
@@ -235,7 +286,7 @@ export default function FinanzasPage() {
             {entries.map((entry) => (
               <li
                 key={entry.id}
-                className="app-card content-auto flex items-center gap-3 px-4 py-3"
+                className="app-card content-auto flex min-h-16 items-center gap-3 px-3 py-2.5 min-[390px]:px-4"
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
@@ -259,21 +310,24 @@ export default function FinanzasPage() {
                         Todos los meses
                       </>
                     ) : (
-                      new Intl.DateTimeFormat("es-AR", {
+                      new Intl.DateTimeFormat("es-UY", {
                         day: "numeric",
                         month: "short",
                       }).format(new Date(`${entry.occurred_at}T12:00:00`))
                     )}
                   </p>
                 </div>
-                <p className="shrink-0 font-semibold tabular-nums">
+                <p className="shrink-0 text-sm font-semibold tabular-nums min-[390px]:text-base">
                   {entry.kind === "income" ? "+" : "−"}
-                  {formatCurrency(Number(entry.amount))}
+                  {formatCurrency(
+                    Number(entry.amount),
+                    entry.currency || "UYU"
+                  )}
                 </p>
                 <button
                   type="button"
                   onClick={() => void deleteEntry(entry.id)}
-                  className="pressable -mr-1 flex h-9 w-9 items-center justify-center rounded-xl text-[var(--color-muted)] hover:text-red-500"
+                  className="pressable tap-target -mr-2 flex items-center justify-center rounded-xl text-[var(--color-muted)] hover:text-red-500"
                   aria-label={`Eliminar ${entry.name}`}
                 >
                   <IconTrash size={18} />
@@ -291,44 +345,81 @@ export default function FinanzasPage() {
       ) : null}
 
       {showForm ? (
-        <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-3 pt-12 safe-bottom">
-          <div className="sheet-enter mx-auto w-full max-w-lg rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7 shadow-2xl">
-            <div className="flex items-center justify-between">
+        <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom min-[390px]:px-3">
+          <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-medium text-[var(--color-muted)]">
                   {kind === "income" ? "ENTRADA DE DINERO" : "AHORRO FIJO"}
                 </p>
                 <h2 className="mt-0.5 text-xl font-semibold">
-                  {kind === "income" ? "Sumar al presupuesto" : "Reservar cada mes"}
+                  {kind === "income"
+                    ? "Sumar al presupuesto"
+                    : "Reservar cada mes"}
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="pressable flex h-9 w-9 items-center justify-center rounded-full bg-black/5 dark:bg-white/10"
+                className="pressable tap-target flex shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10"
                 aria-label="Cerrar"
               >
                 <IconX size={19} />
               </button>
             </div>
 
-            <form onSubmit={(event) => void saveEntry(event)} className="mt-5 space-y-3">
+            <form
+              onSubmit={(event) => void saveEntry(event)}
+              className="mt-5 space-y-3"
+            >
+              <label className="sr-only" htmlFor="finance-name">
+                Nombre
+              </label>
               <input
+                id="finance-name"
                 autoFocus
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder={
-                  kind === "income" ? "Ej: Sueldo, venta, extra" : "Ej: Fondo de emergencia"
+                  kind === "income"
+                    ? "Ej: Sueldo, venta, extra"
+                    : "Ej: Fondo de emergencia"
                 }
                 maxLength={120}
                 required
                 className="app-input"
               />
+
+              <div>
+                <label
+                  htmlFor="finance-currency"
+                  className="mb-1.5 block px-1 text-xs font-medium text-[var(--color-muted)]"
+                >
+                  Moneda
+                </label>
+                <select
+                  id="finance-currency"
+                  value={currency}
+                  onChange={(event) => setCurrency(event.target.value)}
+                  className="app-input appearance-none"
+                >
+                  {SUPPORTED_CURRENCIES.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.code} · {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-muted)]">
-                  $
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--color-muted)]">
+                  {currency}
                 </span>
+                <label className="sr-only" htmlFor="finance-amount">
+                  Monto
+                </label>
                 <input
+                  id="finance-amount"
                   type="number"
                   inputMode="decimal"
                   min="0.01"
@@ -337,10 +428,15 @@ export default function FinanzasPage() {
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0"
                   required
-                  className="app-input pl-8 text-lg font-semibold tabular-nums"
+                  className="app-input pl-14 text-lg font-semibold tabular-nums"
                 />
               </div>
+
+              <label className="sr-only" htmlFor="finance-date">
+                Fecha
+              </label>
               <input
+                id="finance-date"
                 type="date"
                 value={occurredAt}
                 onChange={(event) => setOccurredAt(event.target.value)}
@@ -349,7 +445,7 @@ export default function FinanzasPage() {
               />
 
               {kind === "income" ? (
-                <label className="flex cursor-pointer items-center justify-between rounded-2xl bg-black/[0.035] px-4 py-3 dark:bg-white/[0.06]">
+                <label className="flex min-h-16 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-black/[0.035] px-4 py-3 dark:bg-white/[0.06]">
                   <span>
                     <span className="block text-sm font-medium">
                       Repetir todos los meses
@@ -362,12 +458,13 @@ export default function FinanzasPage() {
                     type="checkbox"
                     checked={isRecurring}
                     onChange={(event) => setIsRecurring(event.target.checked)}
-                    className="h-5 w-5 accent-[var(--color-accent)]"
+                    className="h-6 w-6 shrink-0 accent-[var(--color-accent)]"
                   />
                 </label>
               ) : (
-                <p className="rounded-2xl bg-blue-500/10 px-4 py-3 text-xs text-blue-700 dark:text-blue-300">
-                  Este monto se reservará automáticamente en el cálculo de cada mes.
+                <p className="rounded-2xl bg-blue-500/10 px-4 py-3 text-xs leading-relaxed text-blue-700 dark:text-blue-300">
+                  Se reservará {currency} automáticamente cada mes, sin
+                  convertirlo ni mezclarlo con otras monedas.
                 </p>
               )}
 
@@ -380,7 +477,7 @@ export default function FinanzasPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="pressable w-full rounded-2xl bg-[var(--color-accent)] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+                className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] px-5 py-3.5 text-base font-semibold text-white disabled:opacity-50"
               >
                 {saving ? "Guardando…" : "Guardar"}
               </button>

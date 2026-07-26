@@ -136,6 +136,7 @@ export type Database = {
           kind: "income" | "saving";
           name: string;
           amount: number;
+          currency: string;
           is_recurring: boolean;
           occurred_at: string;
           created_at: string;
@@ -146,6 +147,7 @@ export type Database = {
           kind: "income" | "saving";
           name: string;
           amount: number;
+          currency?: string;
           is_recurring?: boolean;
           occurred_at?: string;
           created_at?: string;
@@ -156,6 +158,7 @@ export type Database = {
           kind?: "income" | "saving";
           name?: string;
           amount?: number;
+          currency?: string;
           is_recurring?: boolean;
           occurred_at?: string;
           created_at?: string;
