@@ -19,6 +19,9 @@ describe("LocalTransactionParser", () => {
     ["I transferred 200 dollars from Itau to Scotia", "TRANSFER", 200, "USD"],
     ["I lent 500 pesos to Juan", "LOAN_GIVEN", 500, "UYU"],
     ["Juan paid me back 300 pesos", "REFUND", 300, "UYU"],
+    ["Spent 500 pesos", "EXPENSE", 500, "UYU"],
+    ["Income 1200 pesos", "INCOME", 1200, "UYU"],
+    ["Transfer 200 dollars from Itau to Scotia", "TRANSFER", 200, "USD"],
   ] as const;
 
   for (const [text, type, amount, currency] of cases) {

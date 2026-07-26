@@ -137,10 +137,11 @@ function parseAmount(text: string): number | null {
 }
 
 function detectType(text: string): TransactionType {
-  if (/\b(transferred|transfer|moved|move)\b/.test(text)) return "TRANSFER";
+  if (/\b(transferred|transfer|moved|move)\b/.test(text) || /\bfrom\s+.+\s+to\s+/.test(text))
+    return "TRANSFER";
   if (/\b(i lent|lent)\b/.test(text)) return "LOAN_GIVEN";
   if (/\b(paid me back|refunded|refund)\b/.test(text)) return "REFUND";
-  if (/\b(i received|received|salary|income|got paid)\b/.test(text)) return "INCOME";
+  if (/\b(i received|received|salary|income|earned|got paid)\b/.test(text)) return "INCOME";
   if (/\b(transferi|pase|transferencia)\b/.test(text)) return "TRANSFER";
   if (/\b(preste|prestamo dado)\b/.test(text)) return "LOAN_GIVEN";
   if (/\b(me devolvio|me devolvieron|reembolso|devolucion)\b/.test(text))
@@ -235,7 +236,7 @@ export class LocalTransactionParser {
     let confidence = amount ? 0.72 : 0.35;
     if (merchant || categoryHint) confidence += 0.1;
     if (hints.accountHint || input.defaultAccountId) confidence += 0.08;
-    if (type !== "EXPENSE" || /\b(gaste|pague|compre|anota|i spent|i paid|i bought)\b/.test(text))
+    if (type !== "EXPENSE" || /\b(gaste|pague|compre|anota|spent|paid|bought)\b/.test(text))
       confidence += 0.06;
 
     return {
