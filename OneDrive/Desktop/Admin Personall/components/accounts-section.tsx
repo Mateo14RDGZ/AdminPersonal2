@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconPlus, IconWallet, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { Account } from "@/lib/database.types";
@@ -15,6 +16,7 @@ export function AccountsSection() {
   const [currency, setCurrency] = useState("UYU");
   const [balance, setBalance] = useState("0");
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/accounts", { cache: "no-store" });
@@ -22,6 +24,7 @@ export function AccountsSection() {
   }, []);
 
   useEffect(() => void load(), [load]);
+  useEffect(() => setMounted(true), []);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -108,7 +111,8 @@ export function AccountsSection() {
         ))}
       </div>
 
-      {open ? (
+      {open && mounted
+        ? createPortal(
         <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom">
           <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7">
             <div className="flex items-center justify-between">
@@ -178,7 +182,8 @@ export function AccountsSection() {
             </form>
           </div>
         </div>
-      ) : null}
+        , document.body)
+        : null}
     </section>
   );
 }

@@ -2,7 +2,7 @@
 
 import { clientsClaim } from "workbox-core";
 import { ExpirationPlugin } from "workbox-expiration";
-import { CacheFirst, NetworkOnly } from "workbox-strategies";
+import { CacheFirst, NetworkFirst, NetworkOnly } from "workbox-strategies";
 import { registerRoute, setCatchHandler } from "workbox-routing";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -20,12 +20,19 @@ self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(caches.delete("api-cache"));
 });
 
+// Never serve an old JavaScript or stylesheet bundle first. In an installed
+// iPhone PWA that can leave the interface running a previous version even
+// after a deployment. The cached version is only a fallback when offline.
 registerRoute(
-  ({ request }) =>
-    request.destination === "style" ||
-    request.destination === "script" ||
-    request.destination === "font" ||
-    request.destination === "image",
+  ({ request }) => request.destination === "style" || request.destination === "script",
+  new NetworkFirst({
+    cacheName: "app-shell",
+    networkTimeoutSeconds: 4,
+  })
+);
+
+registerRoute(
+  ({ request }) => request.destination === "font" || request.destination === "image",
   new CacheFirst({
     cacheName: "static-assets",
     plugins: [
