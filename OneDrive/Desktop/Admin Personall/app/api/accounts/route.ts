@@ -114,3 +114,48 @@ export async function PATCH(request: NextRequest) {
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(request: NextRequest) {
+  const { user, error } = await requireUser();
+  if (error) return error;
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Falta la cuenta" }, { status: 400 });
+
+  const supabase = await createClient();
+  const { data: account, error: accountError } = await supabase
+    .from("accounts")
+    .select("id,currency,is_default")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("is_archived", false)
+    .single();
+  if (accountError || !account) {
+    return NextResponse.json({ error: "Cuenta no disponible" }, { status: 404 });
+  }
+
+  // Archiving removes the balance from all live summaries while keeping the
+  // associated history intact and therefore avoids destructive data loss.
+  const { error: archiveError } = await supabase
+    .from("accounts")
+    .update({ is_archived: true, is_default: false, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (archiveError) return NextResponse.json({ error: archiveError.message }, { status: 500 });
+
+  if (account.is_default) {
+    const { data: replacement } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("currency", account.currency)
+      .eq("is_archived", false)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (replacement) {
+      await supabase.from("accounts").update({ is_default: true }).eq("id", replacement.id);
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}

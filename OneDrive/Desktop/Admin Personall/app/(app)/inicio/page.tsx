@@ -10,6 +10,7 @@ import {
   IconWallet,
 } from "@tabler/icons-react";
 import { EmptyState } from "@/components/empty-state";
+import { MoneyChat } from "@/components/money-chat";
 import { formatCurrency, formatTime, monthKey, sourceLabel } from "@/lib/format";
 import type { TransactionWithCategory } from "@/lib/database.types";
 
@@ -130,6 +131,8 @@ export default function InicioPage() {
           </p>
         </Link>
       </section>
+
+      <MoneyChat onRegistered={() => void load()} />
 
       {accounts.length > 0 ? (
         <section className="space-y-3">

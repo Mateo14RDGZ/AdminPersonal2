@@ -100,6 +100,31 @@ export function AccountsSection() {
     }
   };
 
+  const removeAccount = async () => {
+    if (!editing || saving) return;
+    const confirmed = window.confirm(
+      `¿Eliminar “${editing.name}”? Su saldo dejará de contarse. Los movimientos anteriores se conservarán.`
+    );
+    if (!confirmed) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/accounts?id=${editing.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setError(typeof data?.error === "string" ? data.error : "No se pudo eliminar la cuenta.");
+        return;
+      }
+      closeForm();
+      await load();
+      window.dispatchEvent(new Event("finance-data-changed"));
+    } catch {
+      setError("No se pudo conectar para eliminar la cuenta.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
@@ -156,6 +181,7 @@ export function AccountsSection() {
                   </label>
                   {error ? <p className="text-sm text-red-500">{error}</p> : null}
                   <button className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] text-base font-semibold text-white" type="submit" disabled={saving}>{saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear cuenta"}</button>
+                  {editing ? <button type="button" onClick={() => void removeAccount()} disabled={saving} className="pressable min-h-12 w-full rounded-2xl border border-red-500/35 text-sm font-semibold text-red-500 disabled:opacity-50">Eliminar cuenta</button> : null}
                 </form>
               </div>
             </div>,
