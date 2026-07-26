@@ -68,10 +68,12 @@ export async function GET(request: NextRequest) {
         .maybeSingle(),
       supabase
         .from("pending_transaction_confirmations")
-        .select("id", { count: "exact", head: true })
+        .select("id,raw_input,created_at", { count: "exact" })
         .eq("user_id", user.id)
         .eq("status", "PENDING")
-        .gt("expires_at", new Date().toISOString()),
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(5),
       supabase
         .from("recurring_transactions")
         .select("merchant,description,amount,currency,next_execution_date")
@@ -224,6 +226,7 @@ export async function GET(request: NextRequest) {
         }, {})
       ),
       pendingCount: pendingResult.count ?? 0,
+      pendingConfirmations: pendingResult.data ?? [],
       primaryGoal: goalResult.data ?? null,
       nextPayment: recurringResult.data ?? null,
       uncategorized: spentByCategory.get(null) ?? 0,

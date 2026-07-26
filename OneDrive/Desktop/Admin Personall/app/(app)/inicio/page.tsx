@@ -36,6 +36,11 @@ type Summary = {
   }[];
   accountBalances: { currency: string; balance: number }[];
   pendingCount: number;
+  pendingConfirmations: {
+    id: string;
+    raw_input: string;
+    created_at: string;
+  }[];
   primaryGoal: {
     id: string;
     name: string;
@@ -326,14 +331,27 @@ export default function InicioPage() {
             </div>
           ) : null}
           {summary.pendingCount > 0 ? (
-            <div className="app-card flex min-h-16 items-center gap-3 px-4 py-3">
+            <Link
+              href={`/confirmar/${summary.pendingConfirmations[0]?.id ?? ""}`}
+              className="pressable app-card flex min-h-16 items-center gap-3 px-4 py-3"
+            >
               <IconClockExclamation className="text-amber-500" size={23} />
-              <p className="text-sm font-medium">
-                {summary.pendingCount} movimiento
-                {summary.pendingCount === 1 ? "" : "s"} pendiente
-                {summary.pendingCount === 1 ? "" : "s"} de confirmar
-              </p>
-            </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {summary.pendingCount} movimiento
+                  {summary.pendingCount === 1 ? "" : "s"} pendiente
+                  {summary.pendingCount === 1 ? "" : "s"} de confirmar
+                </p>
+                {summary.pendingConfirmations[0]?.raw_input ? (
+                  <p className="truncate text-xs text-[var(--color-muted)]">
+                    {summary.pendingConfirmations[0].raw_input}
+                  </p>
+                ) : null}
+              </div>
+              <span className="text-xs font-semibold text-[var(--color-accent)]">
+                Revisar
+              </span>
+            </Link>
           ) : null}
         </section>
       ) : null}
