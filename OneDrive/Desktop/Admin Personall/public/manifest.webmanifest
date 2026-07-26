@@ -1,6 +1,6 @@
 {
-  "name": "Gastos",
-  "short_name": "Gastos",
+  "name": "LaPesadilla Finanzas",
+  "short_name": "LaPesadilla Finanzas",
   "description": "Administración personal de gastos",
   "start_url": "/inicio",
   "scope": "/",
@@ -22,7 +22,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

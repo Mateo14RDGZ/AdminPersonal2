@@ -3,15 +3,19 @@ import "./globals.css";
 import { PendingSync } from "@/components/pending-sync";
 
 export const metadata: Metadata = {
-  title: "Gastos",
+  title: "LaPesadilla Finanzas",
   description: "Administración personal de gastos",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Gastos",
+    title: "LaPesadilla Finanzas",
   },
   icons: {
+    icon: [
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
   },
 };
