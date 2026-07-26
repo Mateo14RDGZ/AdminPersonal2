@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SwipeTransactionRow } from "@/components/swipe-transaction-row";
 import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
@@ -12,23 +12,31 @@ export default function MovimientosPage() {
   const [items, setItems] = useState<TransactionWithCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState("");
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!loadedOnce.current) setLoading(true);
     const params = new URLSearchParams({ limit: "100" });
-    if (q.trim()) params.set("q", q.trim());
+    if (debouncedQ.trim()) params.set("q", debouncedQ.trim());
     if (categoryFilter) params.set("category", categoryFilter);
     const res = await fetch(`/api/transactions?${params}`);
     if (res.ok) {
       const json = await res.json();
       setItems(json.data ?? []);
     }
+    loadedOnce.current = true;
     setLoading(false);
-  }, [q, categoryFilter]);
+  }, [debouncedQ, categoryFilter]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQ(q), 220);
+    return () => window.clearTimeout(timeout);
+  }, [q]);
 
   useEffect(() => {
     void load();
@@ -52,8 +60,16 @@ export default function MovimientosPage() {
   }, [items]);
 
   const onDelete = async (id: string) => {
-    await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-    setItems((list) => list.filter((t) => t.id !== id));
+    const previous = items;
+    setItems((list) => list.filter((transaction) => transaction.id !== id));
+    const response = await fetch(`/api/transactions/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      setItems(previous);
+      throw new Error("No se pudo eliminar el gasto");
+    }
+    window.dispatchEvent(new Event("finance-data-changed"));
   };
 
   const onEdit = (tx: TransactionWithCategory) => {
@@ -79,19 +95,22 @@ export default function MovimientosPage() {
 
   return (
     <div className="space-y-4 pb-4">
-      <h1 className="text-xl font-semibold">Movimientos</h1>
+      <header className="page-enter">
+        <p className="text-sm font-medium text-[var(--color-muted)]">Historial</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Movimientos</h1>
+      </header>
 
       <div className="flex gap-2">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Buscar comercio"
-          className="flex-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-4 py-2.5 text-base outline-none"
+          className="app-input min-w-0 flex-1 bg-[var(--color-surface-elevated)] py-2.5"
         />
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="max-w-[40%] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5 text-sm"
+          className="max-w-[40%] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2.5 text-sm outline-none"
         >
           <option value="">Todas</option>
           {categories.map((c) => (
@@ -103,7 +122,11 @@ export default function MovimientosPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-[var(--color-muted)]">Cargando…</p>
+        <div className="space-y-2">
+          <div className="skeleton h-16 rounded-[18px]" />
+          <div className="skeleton h-16 rounded-[18px]" />
+          <div className="skeleton h-16 rounded-[18px]" />
+        </div>
       ) : items.length === 0 ? (
         <EmptyState
           title="Sin movimientos"

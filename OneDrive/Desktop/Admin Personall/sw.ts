@@ -2,7 +2,7 @@
 
 import { clientsClaim } from "workbox-core";
 import { ExpirationPlugin } from "workbox-expiration";
-import { NetworkFirst, CacheFirst } from "workbox-strategies";
+import { CacheFirst } from "workbox-strategies";
 import { registerRoute } from "workbox-routing";
 
 declare const self: ServiceWorkerGlobalScope;
@@ -10,14 +10,9 @@ declare const self: ServiceWorkerGlobalScope;
 clientsClaim();
 self.skipWaiting();
 
-registerRoute(
-  ({ url }) => url.pathname.startsWith("/api/"),
-  new NetworkFirst({
-    cacheName: "api-cache",
-    networkTimeoutSeconds: 10,
-    plugins: [new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 60 })],
-  })
-);
+self.addEventListener("activate", (event: ExtendableEvent) => {
+  event.waitUntil(caches.delete("api-cache"));
+});
 
 registerRoute(
   ({ request }) =>
@@ -39,9 +34,9 @@ self.addEventListener("push", (event: PushEvent) => {
   try {
     payload = event.data.json() as typeof payload;
   } catch {
-    payload = { title: "Gastos", body: event.data.text() };
+    payload = { title: "LaPesadilla Finanzas", body: event.data.text() };
   }
-  const title = payload.title ?? "Gastos";
+  const title = payload.title ?? "LaPesadilla Finanzas";
   const options: NotificationOptions = {
     body: payload.body ?? "",
     icon: "/icons/icon-192.png",

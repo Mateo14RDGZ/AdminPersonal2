@@ -129,6 +129,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      financial_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: "income" | "saving";
+          name: string;
+          amount: number;
+          is_recurring: boolean;
+          occurred_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: "income" | "saving";
+          name: string;
+          amount: number;
+          is_recurring?: boolean;
+          occurred_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: "income" | "saving";
+          name?: string;
+          amount?: number;
+          is_recurring?: boolean;
+          occurred_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -143,6 +176,8 @@ export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 export type MerchantRule = Database["public"]["Tables"]["merchant_rules"]["Row"];
 export type PushSubscriptionRow =
   Database["public"]["Tables"]["push_subscriptions"]["Row"];
+export type FinancialEntry =
+  Database["public"]["Tables"]["financial_entries"]["Row"];
 
 export type TransactionWithCategory = Transaction & {
   categories: Pick<Category, "id" | "name" | "icon" | "color"> | null;

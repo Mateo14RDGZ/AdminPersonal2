@@ -67,10 +67,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    data: data ?? [],
-    page,
-    limit,
-    total: count ?? 0,
-  });
+  return NextResponse.json(
+    {
+      data: data ?? [],
+      page,
+      limit,
+      total: count ?? 0,
+    },
+    {
+      headers: {
+        "Cache-Control": "private, no-store, max-age=0",
+      },
+    }
+  );
 }

@@ -16,6 +16,7 @@ export default function AgregarPage() {
   const [note, setNote] = useState("");
   const [showExtras, setShowExtras] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<"amount" | "category">("amount");
 
   useEffect(() => {
@@ -44,7 +45,8 @@ export default function AgregarPage() {
 
   const save = useCallback(
     async (categoryId: string | null) => {
-      if (numericAmount <= 0) return;
+      if (numericAmount <= 0 || saving) return;
+      setSaving(true);
       const body = {
         amount: numericAmount,
         category_id: categoryId,
@@ -67,6 +69,7 @@ export default function AgregarPage() {
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(10);
       }
+      window.dispatchEvent(new Event("finance-data-changed"));
       setSaved(true);
       setTimeout(() => {
         setSaved(false);
@@ -74,9 +77,10 @@ export default function AgregarPage() {
         setMerchant("");
         setNote("");
         setStep("amount");
+        setSaving(false);
       }, 900);
     },
-    [merchant, note, numericAmount]
+    [merchant, note, numericAmount, saving]
   );
 
   if (saved) {
@@ -136,7 +140,8 @@ export default function AgregarPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => void save(cat.id)}
-                className="flex flex-col items-center gap-2 rounded-[18px] bg-[var(--color-surface-elevated)] px-2 py-4 ios-transition active:scale-95"
+                disabled={saving}
+                className="pressable flex flex-col items-center gap-2 rounded-[18px] bg-[var(--color-surface-elevated)] px-2 py-4 disabled:opacity-50"
               >
                 <CategoryIcon name={cat.icon} size={32} color={cat.color} />
                 <span className="text-center text-xs font-medium leading-tight">
@@ -147,7 +152,8 @@ export default function AgregarPage() {
             <button
               type="button"
               onClick={() => void save(null)}
-              className="flex flex-col items-center gap-2 rounded-[18px] border border-dashed border-[var(--color-border)] px-2 py-4 ios-transition"
+              disabled={saving}
+              className="pressable flex flex-col items-center gap-2 rounded-[18px] border border-dashed border-[var(--color-border)] px-2 py-4 disabled:opacity-50"
             >
               <CategoryIcon name="dots" size={32} />
               <span className="text-xs font-medium">Sin categoría</span>
