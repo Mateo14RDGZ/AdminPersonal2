@@ -14,6 +14,7 @@ export function AccountsSection() {
   const [type, setType] = useState<Account["type"]>("CHECKING");
   const [currency, setCurrency] = useState("UYU");
   const [balance, setBalance] = useState("0");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/accounts", { cache: "no-store" });
@@ -24,30 +25,43 @@ export function AccountsSection() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     setError("");
-    const response = await fetch("/api/accounts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        institution: institution || null,
-        type,
-        currency,
-        initial_balance: Number(balance),
-        is_savings_account: type === "SAVINGS",
-        is_default: accounts.every((account) => account.currency !== currency),
-      }),
-    });
-    if (!response.ok) {
-      setError("No se pudo crear la cuenta.");
-      return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          institution: institution || null,
+          type,
+          currency,
+          initial_balance: Number(balance),
+          is_savings_account: type === "SAVINGS",
+          is_default: accounts.every((account) => account.currency !== currency),
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setError(
+          typeof body?.error === "string"
+            ? body.error
+            : "No se pudo crear la cuenta. Revisá los datos e intentá nuevamente."
+        );
+        return;
+      }
+      setOpen(false);
+      setName("");
+      setInstitution("");
+      setBalance("0");
+      await load();
+      window.dispatchEvent(new Event("finance-data-changed"));
+    } catch {
+      setError("No se pudo conectar para crear la cuenta.");
+    } finally {
+      setSaving(false);
     }
-    setOpen(false);
-    setName("");
-    setInstitution("");
-    setBalance("0");
-    await load();
-    window.dispatchEvent(new Event("finance-data-changed"));
   };
 
   return (
@@ -62,10 +76,10 @@ export function AccountsSection() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-accent)]"
+          className="pressable flex min-h-11 items-center justify-center gap-1 rounded-xl px-2 text-sm font-semibold text-[var(--color-accent)]"
           aria-label="Nueva cuenta"
         >
-          <IconPlus size={22} />
+          <IconPlus size={20} /> Agregar
         </button>
       </div>
       <div className="space-y-2">
@@ -157,8 +171,9 @@ export function AccountsSection() {
               <button
                 className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] text-base font-semibold text-white"
                 type="submit"
+                disabled={saving}
               >
-                Crear cuenta
+                {saving ? "Creando…" : "Crear cuenta"}
               </button>
             </form>
           </div>
@@ -167,4 +182,3 @@ export function AccountsSection() {
     </section>
   );
 }
-

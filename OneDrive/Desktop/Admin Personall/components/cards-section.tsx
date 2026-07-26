@@ -14,6 +14,8 @@ export function CardsSection() {
   const [limit, setLimit] = useState("");
   const [closingDay, setClosingDay] = useState("");
   const [dueDay, setDueDay] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/cards", { cache: "no-store" });
@@ -23,23 +25,44 @@ export function CardsSection() {
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    const response = await fetch("/api/cards", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        institution: institution || null,
-        currency,
-        credit_limit: Number(limit),
-        closing_day: closingDay ? Number(closingDay) : null,
-        due_day: dueDay ? Number(dueDay) : null,
-      }),
-    });
-    if (!response.ok) return;
-    setOpen(false);
-    setName("");
-    setLimit("");
-    await load();
+    if (saving) return;
+    setError("");
+    setSaving(true);
+    try {
+      const response = await fetch("/api/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          institution: institution || null,
+          currency,
+          credit_limit: Number(limit),
+          closing_day: closingDay ? Number(closingDay) : null,
+          due_day: dueDay ? Number(dueDay) : null,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setError(
+          typeof body?.error === "string"
+            ? body.error
+            : "No se pudo crear la tarjeta. Revisá los datos e intentá nuevamente."
+        );
+        return;
+      }
+      setOpen(false);
+      setName("");
+      setInstitution("");
+      setLimit("");
+      setClosingDay("");
+      setDueDay("");
+      await load();
+      window.dispatchEvent(new Event("finance-data-changed"));
+    } catch {
+      setError("No se pudo conectar para crear la tarjeta.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -54,10 +77,10 @@ export function CardsSection() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pressable tap-target flex items-center justify-center text-[var(--color-accent)]"
+          className="pressable flex min-h-11 items-center justify-center gap-1 rounded-xl px-2 text-sm font-semibold text-[var(--color-accent)]"
           aria-label="Nueva tarjeta"
         >
-          <IconPlus size={22} />
+          <IconPlus size={20} /> Agregar
         </button>
       </div>
       {cards.map((card) => {
@@ -118,8 +141,13 @@ export function CardsSection() {
                 <input type="number" min="1" max="31" value={closingDay} onChange={(e) => setClosingDay(e.target.value)} placeholder="Día de cierre" className="app-input" />
                 <input type="number" min="1" max="31" value={dueDay} onChange={(e) => setDueDay(e.target.value)} placeholder="Vencimiento" className="app-input" />
               </div>
-              <button type="submit" className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white">
-                Crear tarjeta
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              <button
+                type="submit"
+                disabled={saving}
+                className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white"
+              >
+                {saving ? "Creando…" : "Crear tarjeta"}
               </button>
             </form>
           </div>
@@ -128,4 +156,3 @@ export function CardsSection() {
     </section>
   );
 }
-
