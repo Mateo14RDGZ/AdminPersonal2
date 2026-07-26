@@ -24,8 +24,10 @@ Copiá `.env.example` a `.env.local` y completá los valores:
 | Variable | Uso |
 |----------|-----|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima (cliente + API con sesión) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Solo servidor (rutas `/api/ingest/*`) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clave pública `sb_publishable_...` (recomendada) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Alternativa legacy a la publishable key |
+| `SUPABASE_SECRET_KEY` | Clave secreta `sb_secret_...`, solo servidor (recomendada) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Alternativa legacy a la secret key |
 | `INGEST_SECRET` | Bearer token para Atajos / email |
 | `INGEST_USER_ID` | UUID de tu usuario en `auth.users` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push |
@@ -49,11 +51,17 @@ Abrí [http://localhost:3000](http://localhost:3000).
 
    `supabase/migrations/20260326120000_initial_schema.sql`
 
-3. En **Authentication → Providers**, activá **Apple** y configurá redirect URLs:
+   Si ya creaste las tablas con el SQL original compartido, aplicá solamente:
+
+   `supabase/migrations/20260726000000_align_existing_schema.sql`
+
+3. En **Authentication → URL Configuration**, configurá la URL del sitio y agregá:
    - `http://localhost:3000/auth/callback`
    - `https://tu-dominio.vercel.app/auth/callback`
 
-4. Tras el primer login, copiá tu `user id` desde **Authentication → Users** y ponelo en `INGEST_USER_ID`.
+4. En **Authentication → Providers**, activá **Apple** y configurá sus credenciales.
+
+5. Tras el primer login, copiá tu `user id` desde **Authentication → Users** y ponelo en `INGEST_USER_ID`.
 
 El trigger `on_auth_user_created_seed_categories` crea 8 categorías por defecto al registrarse.
 

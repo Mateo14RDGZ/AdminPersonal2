@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { matchCategoryFromRules } from "@/lib/categorize";
 import { sendPushToUser } from "@/lib/push-server";

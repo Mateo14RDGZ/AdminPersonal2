@@ -10,28 +10,30 @@ export default function LoginPage() {
   const signIn = async () => {
     setError(null);
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !anonKey) {
-      setError("Faltan las variables públicas de Supabase en Vercel.");
-      return;
-    }
-
     setLoading(true);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithOAuth({
-      provider: "apple",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/inicio`,
-      },
-    });
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/inicio`,
+        },
+      });
 
-    if (signInError) {
+      if (signInError) {
+        setError(
+          signInError.message ||
+            "No se pudo iniciar sesión con Apple. Verificá que el proveedor esté habilitado en Supabase."
+        );
+      }
+    } catch (caughtError) {
       setError(
-        signInError.message ||
-          "No se pudo iniciar sesión con Apple. Verificá que el proveedor esté habilitado en Supabase."
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo iniciar sesión con Apple."
       );
+    } finally {
       setLoading(false);
     }
   };

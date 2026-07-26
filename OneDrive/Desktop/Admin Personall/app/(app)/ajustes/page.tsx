@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CategoryIcon, CATEGORY_ICON_OPTIONS } from "@/components/category-icon";
 import { EmptyState } from "@/components/empty-state";
@@ -16,7 +16,7 @@ export default function AjustesPage() {
   const [editing, setEditing] = useState<Partial<Category> | null>(null);
   const [newRule, setNewRule] = useState({ pattern: "", category_id: "" });
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     const supabase = createClient();
     const [{ data: cats }, { data: rls }] = await Promise.all([
       supabase.from("categories").select("*").order("name"),
@@ -24,11 +24,11 @@ export default function AjustesPage() {
     ]);
     setCategories(cats ?? []);
     setRules((rls as typeof rules) ?? []);
-  };
+  }, []);
 
   useEffect(() => {
     void reload();
-  }, []);
+  }, [reload]);
 
   const saveCategory = async () => {
     if (!editing?.name) return;
