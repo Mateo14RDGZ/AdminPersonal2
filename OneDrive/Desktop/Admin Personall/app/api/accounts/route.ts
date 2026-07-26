@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
-import { accountSchema } from "@/lib/validation";
+import { accountSchema, accountUpdateSchema } from "@/lib/validation";
 
 export async function GET() {
   const { user, error } = await requireUser();
@@ -70,4 +70,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
   return NextResponse.json(data, { status: 201 });
+}
+
+export async function PATCH(request: NextRequest) {
+  const { user, error } = await requireUser();
+  if (error) return error;
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Falta la cuenta" }, { status: 400 });
+  const parsed = accountUpdateSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from("accounts")
+    .select("id,currency")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("is_archived", false)
+    .single();
+  if (currentError || !current) {
+    return NextResponse.json({ error: "Cuenta no disponible" }, { status: 404 });
+  }
+  if (parsed.data.is_default) {
+    await supabase
+      .from("accounts")
+      .update({ is_default: false })
+      .eq("user_id", user.id)
+      .eq("currency", current.currency);
+  }
+  const { data, error: updateError } = await supabase
+    .from("accounts")
+    .update({
+      ...parsed.data,
+      is_savings_account: parsed.data.type === "SAVINGS",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("*")
+    .single();
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  return NextResponse.json(data);
 }

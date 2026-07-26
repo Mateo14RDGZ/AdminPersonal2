@@ -98,6 +98,14 @@ export const accountSchema = z.object({
   is_default: z.boolean().default(false),
 });
 
+export const accountUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  institution: z.string().trim().max(100).optional().nullable(),
+  type: z.enum(["CASH", "CHECKING", "SAVINGS", "DIGITAL_WALLET", "OTHER"]),
+  current_balance: z.coerce.number().finite(),
+  is_default: z.boolean().default(false),
+});
+
 export const savingsGoalSchema = z.object({
   name: z.string().trim().min(1).max(120),
   target_amount: z.coerce.number().positive(),
