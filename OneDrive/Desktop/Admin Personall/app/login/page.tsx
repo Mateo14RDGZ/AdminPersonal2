@@ -1,16 +1,39 @@
 "use client";
 
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const signIn = async () => {
+    setError(null);
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anonKey) {
+      setError("Faltan las variables públicas de Supabase en Vercel.");
+      return;
+    }
+
+    setLoading(true);
+
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
+    const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/inicio`,
       },
     });
+
+    if (signInError) {
+      setError(
+        signInError.message ||
+          "No se pudo iniciar sesión con Apple. Verificá que el proveedor esté habilitado en Supabase."
+      );
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,10 +52,16 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => void signIn()}
-          className="mt-8 w-full rounded-2xl bg-black py-3.5 text-sm font-semibold text-white dark:bg-white dark:text-black ios-transition active:opacity-80"
+          disabled={loading}
+          className="mt-8 w-full rounded-2xl bg-black py-3.5 text-sm font-semibold text-white dark:bg-white dark:text-black ios-transition active:opacity-80 disabled:opacity-60"
         >
-          Continuar con Apple
+          {loading ? "Abriendo Apple…" : "Continuar con Apple"}
         </button>
+        {error ? (
+          <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );
