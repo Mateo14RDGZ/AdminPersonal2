@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@variant dark (@media (prefers-color-scheme: dark));
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  --color-accent: #1d9e75;
+  --color-accent-muted: #178a66;
+  --color-surface: #f5f5f7;
+  --color-surface-elevated: #ffffff;
+  --color-foreground: #1c1c1e;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-surface: #0f0f11;
+    --color-surface-elevated: #1c1c1e;
+    --color-foreground: #f5f5f7;
+    --color-muted: #9ca3af;
+    --color-border: #2c2c2e;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-[var(--color-surface)] text-[var(--color-foreground)] font-sans antialiased;
+    overscroll-behavior-y: contain;
+  }
+}
+
+@layer utilities {
+  .ios-transition {
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .screen-height {
+    min-height: 100dvh;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .amount-xl {
+    @apply text-[2.125rem] font-semibold tracking-tight leading-none;
+  }
+
+  .amount-lg {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+}

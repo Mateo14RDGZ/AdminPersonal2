@@ -1,0 +1,58 @@
+export type PendingTransaction = {
+  id: string;
+  amount: number;
+  category_id: string | null;
+  merchant?: string | null;
+  note?: string | null;
+  occurred_at: string;
+};
+
+const STORAGE_KEY = "pending_transactions";
+
+export function getPending(): PendingTransaction[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as PendingTransaction[];
+  } catch {
+    return [];
+  }
+}
+
+export function addPending(tx: Omit<PendingTransaction, "id">): PendingTransaction {
+  const item: PendingTransaction = {
+    ...tx,
+    id: crypto.randomUUID(),
+  };
+  const list = getPending();
+  list.push(item);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  return item;
+}
+
+export function removePending(id: string) {
+  const list = getPending().filter((t) => t.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+export async function flushPending(
+  post: (body: Omit<PendingTransaction, "id">) => Promise<Response>
+): Promise<number> {
+  const list = getPending();
+  let synced = 0;
+  for (const item of list) {
+    const res = await post({
+      amount: item.amount,
+      category_id: item.category_id,
+      merchant: item.merchant,
+      note: item.note,
+      occurred_at: item.occurred_at,
+    });
+    if (res.ok) {
+      removePending(item.id);
+      synced += 1;
+    }
+  }
+  return synced;
+}
