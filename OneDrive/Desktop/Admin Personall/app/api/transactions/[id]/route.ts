@@ -33,19 +33,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const { user, error } = await requireUser();
+  const { error } = await requireUser();
   if (error) return error;
 
   const { id } = await params;
   const supabase = await createClient();
-  const { error: dbError } = await supabase
-    .from("transactions")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const { data: deleted, error: dbError } = await supabase.rpc(
+    "delete_financial_transaction",
+    { p_id: id }
+  );
 
-  if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError || !deleted) {
+    return NextResponse.json(
+      { error: dbError?.message ?? "Movimiento no encontrado" },
+      { status: dbError ? 500 : 404 }
+    );
   }
 
   return NextResponse.json({ ok: true });

@@ -1,6 +1,10 @@
 export type PendingTransaction = {
   id: string;
+  type?: string;
   amount: number;
+  currency?: string;
+  account_id?: string | null;
+  destination_account_id?: string | null;
   category_id: string | null;
   merchant?: string | null;
   note?: string | null;
@@ -44,6 +48,10 @@ export async function flushPending(
   for (const item of list) {
     const res = await post({
       amount: item.amount,
+      type: item.type,
+      currency: item.currency,
+      account_id: item.account_id,
+      destination_account_id: item.destination_account_id,
       category_id: item.category_id,
       merchant: item.merchant,
       note: item.note,

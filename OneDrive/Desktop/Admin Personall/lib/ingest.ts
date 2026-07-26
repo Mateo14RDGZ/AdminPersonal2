@@ -61,19 +61,35 @@ export async function handleIngest(
 
   const occurredAt = occurred_at ?? new Date().toISOString();
 
-  const { data: tx, error } = await supabase
-    .from("transactions")
-    .insert({
-      user_id: userId,
-      amount,
-      merchant: merchant ?? null,
-      card_name: card_name ?? null,
-      category_id: categoryId,
-      source,
-      occurred_at: occurredAt,
-    })
+  const { data: account } = await supabase
+    .from("accounts")
     .select("id")
-    .single();
+    .eq("user_id", userId)
+    .eq("currency", "UYU")
+    .eq("is_archived", false)
+    .order("is_default", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!account) {
+    return Response.json({ error: "No default UYU account" }, { status: 409 });
+  }
+
+  const { data: tx, error } = await supabase.rpc(
+    "create_financial_transaction_service",
+    {
+      p_user_id: userId,
+      p_type: "EXPENSE",
+      p_amount: amount,
+      p_currency: "UYU",
+      p_account_id: account.id,
+      p_category_id: categoryId,
+      p_merchant: merchant ?? null,
+      p_description: card_name ? `Tarjeta: ${card_name}` : null,
+      p_occurred_at: occurredAt,
+      p_source: source,
+      p_status: "CONFIRMED",
+    }
+  );
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -82,7 +98,7 @@ export async function handleIngest(
   const merchantLabel = merchant?.trim() || "Gasto";
   const formatted = new Intl.NumberFormat("es-AR", {
     style: "currency",
-    currency: "ARS",
+    currency: "UYU",
     maximumFractionDigits: 0,
   }).format(amount);
 

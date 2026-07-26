@@ -15,7 +15,7 @@ const tabs = [
   { href: "/inicio", label: "Inicio", icon: IconChartBar },
   { href: "/movimientos", label: "Movimientos", icon: IconList },
   { href: "/agregar", label: "Agregar", icon: IconPlus, primary: true },
-  { href: "/finanzas", label: "Finanzas", icon: IconPigMoney },
+  { href: "/finanzas", label: "Metas", icon: IconPigMoney },
   { href: "/ajustes", label: "Ajustes", icon: IconSettings },
 ];
 

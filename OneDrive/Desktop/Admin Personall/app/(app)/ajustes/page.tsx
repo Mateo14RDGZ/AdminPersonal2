@@ -7,6 +7,10 @@ import { EmptyState } from "@/components/empty-state";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, MerchantRule } from "@/lib/database.types";
+import { AccountsSection } from "@/components/accounts-section";
+import { AutomationSection } from "@/components/automation-section";
+import { CardsSection } from "@/components/cards-section";
+import { ImportSection } from "@/components/import-section";
 
 export default function AjustesPage() {
   const router = useRouter();
@@ -23,7 +27,7 @@ export default function AjustesPage() {
       supabase.from("merchant_rules").select("*, categories(*)").order("created_at"),
     ]);
     setCategories(cats ?? []);
-    setRules((rls as typeof rules) ?? []);
+    setRules((rls as unknown as typeof rules) ?? []);
   }, []);
 
   useEffect(() => {
@@ -90,6 +94,14 @@ export default function AjustesPage() {
   return (
     <div className="space-y-8 pb-4">
       <h1 className="text-xl font-semibold">Ajustes</h1>
+
+      <AccountsSection />
+
+      <CardsSection />
+
+      <AutomationSection />
+
+      <ImportSection />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -231,6 +243,12 @@ export default function AjustesPage() {
           className="block rounded-[18px] bg-[var(--color-surface-elevated)] px-4 py-3 text-center text-sm font-medium"
         >
           Exportar CSV
+        </a>
+        <a
+          href="/api/export/json"
+          className="block rounded-[18px] bg-[var(--color-surface-elevated)] px-4 py-3 text-center text-sm font-medium"
+        >
+          Exportar copia completa JSON
         </a>
         <button
           type="button"

@@ -4,14 +4,24 @@ import { useCallback, useEffect, useState } from "react";
 import { IconCheck } from "@tabler/icons-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { addPending } from "@/lib/pending-queue";
-import type { Category } from "@/lib/database.types";
+import type { Account, Category, TransactionType } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
+import { SUPPORTED_CURRENCIES } from "@/lib/format";
 
 const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"];
 
 export default function AgregarPage() {
   const [amount, setAmount] = useState("0");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transactionType, setTransactionType] =
+    useState<TransactionType>("EXPENSE");
+  const [currency, setCurrency] = useState("UYU");
+  const [accountId, setAccountId] = useState("");
+  const [destinationAccountId, setDestinationAccountId] = useState("");
+  const [entryMode, setEntryMode] = useState<"quick" | "text">("quick");
+  const [naturalText, setNaturalText] = useState("");
+  const [parseMessage, setParseMessage] = useState("");
   const [merchant, setMerchant] = useState("");
   const [note, setNote] = useState("");
   const [showExtras, setShowExtras] = useState(false);
@@ -21,11 +31,19 @@ export default function AgregarPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    void supabase
-      .from("categories")
-      .select("*")
-      .order("name")
-      .then(({ data }) => setCategories(data ?? []));
+    void Promise.all([
+      supabase.from("categories").select("*").order("name"),
+      fetch("/api/accounts", { cache: "no-store" }).then((response) =>
+        response.ok ? response.json() : []
+      ),
+    ]).then(([{ data }, accountData]) => {
+      setCategories(data ?? []);
+      setAccounts(accountData);
+      const preferred = (accountData as Account[]).find(
+        (account) => account.is_default && account.currency === "UYU"
+      );
+      setAccountId(preferred?.id ?? accountData[0]?.id ?? "");
+    });
   }, []);
 
   const numericAmount = parseFloat(amount.replace(",", ".")) || 0;
@@ -48,7 +66,12 @@ export default function AgregarPage() {
       if (numericAmount <= 0 || saving) return;
       setSaving(true);
       const body = {
+        type: transactionType,
         amount: numericAmount,
+        currency,
+        account_id: accountId || null,
+        destination_account_id:
+          transactionType === "TRANSFER" ? destinationAccountId || null : null,
         category_id: categoryId,
         merchant: merchant.trim() || null,
         note: note.trim() || null,
@@ -80,8 +103,49 @@ export default function AgregarPage() {
         setSaving(false);
       }, 900);
     },
-    [merchant, note, numericAmount, saving]
+    [
+      accountId,
+      currency,
+      destinationAccountId,
+      merchant,
+      note,
+      numericAmount,
+      saving,
+      transactionType,
+    ]
   );
+
+  const parseNaturalText = async () => {
+    if (!naturalText.trim() || saving) return;
+    setSaving(true);
+    setParseMessage("");
+    const response = await fetch("/api/parse-transaction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: naturalText,
+        source: "text",
+        timezone: "America/Montevideo",
+        defaultAccountId: accountId || null,
+        defaultCurrency: currency,
+        idempotencyKey: crypto.randomUUID(),
+      }),
+    });
+    const data = await response.json();
+    setSaving(false);
+    if (!response.ok) {
+      setParseMessage(data.error || "No pude interpretar el movimiento.");
+      return;
+    }
+    setParseMessage(data.message);
+    if (!data.requiresConfirmation) {
+      setNaturalText("");
+      window.dispatchEvent(new Event("finance-data-changed"));
+      navigator.vibrate?.(10);
+    } else if (data.confirmationUrl) {
+      setParseMessage(`${data.message}. Abrí el enlace para revisarlo.`);
+    }
+  };
 
   if (saved) {
     return (
@@ -99,14 +163,171 @@ export default function AgregarPage() {
 
   return (
     <div className="space-y-6 pb-8">
+      <div className="currency-tabs" role="tablist" aria-label="Modo de registro">
+        <button
+          type="button"
+          onClick={() => setEntryMode("quick")}
+          className={`currency-tab ${entryMode === "quick" ? "currency-tab-active" : ""}`}
+          aria-pressed={entryMode === "quick"}
+        >
+          Rápido
+        </button>
+        <button
+          type="button"
+          onClick={() => setEntryMode("text")}
+          className={`currency-tab ${entryMode === "text" ? "currency-tab-active" : ""}`}
+          aria-pressed={entryMode === "text"}
+        >
+          Texto o voz
+        </button>
+      </div>
+
+      {entryMode === "text" ? (
+        <section className="space-y-4">
+          <div className="app-card p-4">
+            <label className="text-sm font-semibold" htmlFor="natural-text">
+              ¿Qué movimiento hiciste?
+            </label>
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
+              Ejemplo: “Gasté 450 pesos en la panadería con Itaú”
+            </p>
+            <textarea
+              id="natural-text"
+              value={naturalText}
+              onChange={(event) => setNaturalText(event.target.value)}
+              rows={4}
+              className="app-input mt-3 resize-none"
+              placeholder="Escribí o usá el dictado del teclado…"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={currency}
+              onChange={(event) => setCurrency(event.target.value)}
+              className="app-input"
+              aria-label="Moneda predeterminada"
+            >
+              {SUPPORTED_CURRENCIES.map((option) => (
+                <option key={option.code}>{option.code}</option>
+              ))}
+            </select>
+            <select
+              value={accountId}
+              onChange={(event) => setAccountId(event.target.value)}
+              className="app-input"
+              aria-label="Cuenta predeterminada"
+            >
+              <option value="">Elegir cuenta</option>
+              {accounts
+                .filter((account) => account.currency === currency)
+                .map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            disabled={!naturalText.trim() || saving}
+            onClick={() => void parseNaturalText()}
+            className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] text-base font-semibold text-white disabled:opacity-40"
+          >
+            {saving ? "Interpretando…" : "Registrar movimiento"}
+          </button>
+          {parseMessage ? (
+            <p className="rounded-2xl bg-[var(--color-accent)]/10 px-4 py-3 text-sm">
+              {parseMessage}
+            </p>
+          ) : null}
+        </section>
+      ) : (
+        <>
       <header className="text-center">
         <p className="text-sm text-[var(--color-muted)]">
           {step === "amount" ? "Paso 1 · Monto" : "Paso 2 · Categoría"}
         </p>
         <p className="amount-xl mt-2 tabular-nums">
-          ${amount}
+          {currency} {amount}
         </p>
       </header>
+
+      <div className="grid grid-cols-2 gap-3">
+        <select
+          value={transactionType}
+          onChange={(event) =>
+            setTransactionType(event.target.value as TransactionType)
+          }
+          className="app-input"
+          aria-label="Tipo de movimiento"
+        >
+          <option value="EXPENSE">Gasto</option>
+          <option value="INCOME">Ingreso</option>
+          <option value="TRANSFER">Transferencia</option>
+          <option value="REFUND">Devolución</option>
+          <option value="LOAN_GIVEN">Préstamo dado</option>
+        </select>
+        <select
+          value={currency}
+          onChange={(event) => {
+            setCurrency(event.target.value);
+            const preferred = accounts.find(
+              (account) =>
+                account.currency === event.target.value && account.is_default
+            );
+            setAccountId(preferred?.id ?? "");
+          }}
+          className="app-input"
+          aria-label="Moneda"
+        >
+          {SUPPORTED_CURRENCIES.map((option) => (
+            <option key={option.code}>{option.code}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <select
+          value={accountId}
+          onChange={(event) => setAccountId(event.target.value)}
+          className="app-input"
+          aria-label="Cuenta de origen"
+        >
+          <option value="">Cuenta</option>
+          {accounts
+            .filter((account) => account.currency === currency)
+            .map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+        </select>
+        {transactionType === "TRANSFER" ? (
+          <select
+            value={destinationAccountId}
+            onChange={(event) => setDestinationAccountId(event.target.value)}
+            className="app-input"
+            aria-label="Cuenta de destino"
+          >
+            <option value="">Destino</option>
+            {accounts
+              .filter(
+                (account) =>
+                  account.currency === currency && account.id !== accountId
+              )
+              .map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+          </select>
+        ) : (
+          <div className="app-input flex items-center text-sm text-[var(--color-muted)]">
+            {accounts.find((account) => account.id === accountId)?.institution ||
+              "Saldo actualizado"}
+          </div>
+        )}
+      </div>
 
       {step === "amount" ? (
         <>
@@ -194,6 +415,8 @@ export default function AgregarPage() {
           </div>
         ) : null}
       </div>
+        </>
+      )}
     </div>
   );
 }

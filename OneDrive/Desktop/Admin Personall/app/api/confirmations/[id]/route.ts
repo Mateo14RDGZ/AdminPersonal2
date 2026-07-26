@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api-auth";
+import { createClient } from "@/lib/supabase/server";
+import { quickTransactionSchema } from "@/lib/validation";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function GET(_request: NextRequest, { params }: Params) {
+  const { user, error } = await requireUser();
+  if (error) return error;
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data, error: dbError } = await supabase
+    .from("pending_transaction_confirmations")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("status", "PENDING")
+    .gt("expires_at", new Date().toISOString())
+    .single();
+  if (dbError) {
+    return NextResponse.json({ error: "Confirmación no disponible" }, { status: 404 });
+  }
+  return NextResponse.json(data, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+export async function PATCH(request: NextRequest, { params }: Params) {
+  const { user, error } = await requireUser();
+  if (error) return error;
+  const { id } = await params;
+  const parsed = quickTransactionSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const supabase = await createClient();
+  const { data: pending } = await supabase
+    .from("pending_transaction_confirmations")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("status", "PENDING")
+    .gt("expires_at", new Date().toISOString())
+    .single();
+  if (!pending) {
+    return NextResponse.json({ error: "Confirmación no disponible" }, { status: 404 });
+  }
+  const { data, error: createError } = await supabase.rpc(
+    "create_financial_transaction",
+    {
+      p_type: parsed.data.type,
+      p_amount: parsed.data.amount,
+      p_currency: parsed.data.currency,
+      p_account_id: parsed.data.account_id,
+      p_destination_account_id: parsed.data.destination_account_id ?? null,
+      p_credit_card_id: parsed.data.credit_card_id ?? null,
+      p_category_id: parsed.data.category_id ?? null,
+      p_merchant: parsed.data.merchant ?? null,
+      p_description: parsed.data.description ?? null,
+      p_notes: parsed.data.notes ?? parsed.data.note ?? null,
+      p_occurred_at: parsed.data.occurred_at ?? new Date().toISOString(),
+      p_source: parsed.data.source,
+      p_status: "CONFIRMED",
+      p_idempotency_key: parsed.data.idempotency_key ?? null,
+    }
+  );
+  if (createError) {
+    return NextResponse.json({ error: createError.message }, { status: 500 });
+  }
+  await supabase
+    .from("pending_transaction_confirmations")
+    .update({ status: "CONFIRMED", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  return NextResponse.json({ success: true, transaction: data });
+}
+

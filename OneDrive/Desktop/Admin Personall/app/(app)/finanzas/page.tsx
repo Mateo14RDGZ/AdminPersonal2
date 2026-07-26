@@ -11,6 +11,8 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { EmptyState } from "@/components/empty-state";
+import { GoalsSection } from "@/components/goals-section";
+import { RecurringSection } from "@/components/recurring-section";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatCurrency,
@@ -268,6 +270,10 @@ export default function FinanzasPage() {
           </span>
         </button>
       </section>
+
+      <GoalsSection />
+
+      <RecurringSection />
 
       <section className="space-y-3">
         <h2 className="section-label">Movimientos configurados</h2>

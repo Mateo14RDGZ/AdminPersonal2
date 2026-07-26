@@ -2,13 +2,19 @@
 
 import { clientsClaim } from "workbox-core";
 import { ExpirationPlugin } from "workbox-expiration";
-import { CacheFirst } from "workbox-strategies";
-import { registerRoute } from "workbox-routing";
+import { CacheFirst, NetworkOnly } from "workbox-strategies";
+import { registerRoute, setCatchHandler } from "workbox-routing";
 
 declare const self: ServiceWorkerGlobalScope;
 
 clientsClaim();
 self.skipWaiting();
+
+self.addEventListener("install", (event: ExtendableEvent) => {
+  event.waitUntil(
+    caches.open("offline-shell").then((cache) => cache.add("/offline"))
+  );
+});
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(caches.delete("api-cache"));
@@ -27,6 +33,19 @@ registerRoute(
     ],
   })
 );
+
+registerRoute(
+  ({ request }) => request.mode === "navigate",
+  new NetworkOnly()
+);
+
+setCatchHandler(async ({ event }) => {
+  const request = (event as FetchEvent).request;
+  if (request.mode === "navigate") {
+    return (await caches.match("/offline")) ?? Response.error();
+  }
+  return Response.error();
+});
 
 self.addEventListener("push", (event: PushEvent) => {
   if (!event.data) return;

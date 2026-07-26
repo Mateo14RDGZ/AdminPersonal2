@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { monthKey, monthRange } from "@/lib/format";
+import { calculateAvailability } from "@/lib/finance";
 
 export async function GET(request: NextRequest) {
   const { user, error } = await requireUser();
@@ -18,7 +19,16 @@ export async function GET(request: NextRequest) {
   todayStart.setHours(0, 0, 0, 0);
 
   const supabase = await createClient();
-  const [categoryResult, transactionResult, financeResult, todayResult] =
+  const [
+    categoryResult,
+    transactionResult,
+    financeResult,
+    todayResult,
+    accountResult,
+    goalResult,
+    pendingResult,
+    recurringResult,
+  ] =
     await Promise.all([
       supabase
         .from("categories")
@@ -27,7 +37,7 @@ export async function GET(request: NextRequest) {
         .order("name"),
       supabase
         .from("transactions")
-        .select("amount, category_id")
+        .select("amount, category_id, type, currency, status")
         .eq("user_id", user.id)
         .gte("occurred_at", from)
         .lte("occurred_at", to),
@@ -43,13 +53,45 @@ export async function GET(request: NextRequest) {
         .gte("occurred_at", todayStart.toISOString())
         .order("occurred_at", { ascending: false })
         .limit(20),
+      supabase
+        .from("accounts")
+        .select("currency,current_balance")
+        .eq("user_id", user.id)
+        .eq("is_archived", false),
+      supabase
+        .from("savings_goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_archived", false)
+        .order("is_primary", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("pending_transaction_confirmations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "PENDING")
+        .gt("expires_at", new Date().toISOString()),
+      supabase
+        .from("recurring_transactions")
+        .select("merchant,description,amount,currency,next_execution_date")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .gte("next_execution_date", new Date().toISOString().slice(0, 10))
+        .order("next_execution_date")
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   const firstError =
     categoryResult.error ??
     transactionResult.error ??
     financeResult.error ??
-    todayResult.error;
+    todayResult.error ??
+    accountResult.error ??
+    goalResult.error ??
+    pendingResult.error ??
+    recurringResult.error;
 
   if (firstError) {
     return NextResponse.json({ error: firstError.message }, { status: 500 });
@@ -58,6 +100,13 @@ export async function GET(request: NextRequest) {
   const transactions = transactionResult.data ?? [];
   const spentByCategory = new Map<string | null, number>();
   for (const transaction of transactions) {
+    if (
+      transaction.type !== "EXPENSE" ||
+      transaction.currency !== "UYU" ||
+      transaction.status !== "CONFIRMED"
+    ) {
+      continue;
+    }
     const key = transaction.category_id;
     spentByCategory.set(
       key,
@@ -66,7 +115,12 @@ export async function GET(request: NextRequest) {
   }
 
   const totalSpent = transactions.reduce(
-    (sum, transaction) => sum + Number(transaction.amount),
+    (sum, transaction) =>
+      transaction.type === "EXPENSE" &&
+      transaction.currency === "UYU" &&
+      transaction.status === "CONFIRMED"
+        ? sum + Number(transaction.amount)
+        : sum,
     0
   );
 
@@ -85,18 +139,32 @@ export async function GET(request: NextRequest) {
     return created;
   };
 
-  ensureCurrency("UYU").spent = totalSpent;
+  ensureCurrency("UYU");
   for (const entry of entriesThisMonth) {
     const totals = ensureCurrency(entry.currency || "UYU");
     if (entry.kind === "income") totals.income += Number(entry.amount);
     else totals.savings += Number(entry.amount);
   }
+  for (const transaction of transactions) {
+    if (transaction.status !== "CONFIRMED") continue;
+    const totals = ensureCurrency(transaction.currency || "UYU");
+    if (transaction.type === "INCOME" || transaction.type === "REFUND") {
+      totals.income += Number(transaction.amount);
+    } else if (transaction.type === "EXPENSE") {
+      totals.spent += Number(transaction.amount);
+    }
+  }
 
   const balances = [...totalsByCurrency.values()]
-    .map((totals) => ({
-      ...totals,
-      available: totals.income - totals.savings - totals.spent,
-    }))
+    .map((totals) => {
+      const availability = calculateAvailability({
+        income: totals.income,
+        spent: totals.spent,
+        reservedSavings: totals.savings,
+        daysRemaining: 1,
+      });
+      return { ...totals, available: availability.available };
+    })
     .sort((first, second) => {
       const priority = ["UYU", "USD"];
       const firstIndex = priority.indexOf(first.currency);
@@ -145,6 +213,19 @@ export async function GET(request: NextRequest) {
       totalSpent,
       availableBudget: primaryTotals.available,
       balances,
+      accountBalances: Object.values(
+        (accountResult.data ?? []).reduce<
+          Record<string, { currency: string; balance: number }>
+        >((accumulator, account) => {
+          const currency = account.currency || "UYU";
+          accumulator[currency] ??= { currency, balance: 0 };
+          accumulator[currency].balance += Number(account.current_balance);
+          return accumulator;
+        }, {})
+      ),
+      pendingCount: pendingResult.count ?? 0,
+      primaryGoal: goalResult.data ?? null,
+      nextPayment: recurringResult.data ?? null,
       uncategorized: spentByCategory.get(null) ?? 0,
       categories: byCategory,
       today: todayResult.data ?? [],

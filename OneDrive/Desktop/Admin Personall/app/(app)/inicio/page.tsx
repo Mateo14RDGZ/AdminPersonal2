@@ -5,7 +5,10 @@ import Link from "next/link";
 import {
   IconArrowDownRight,
   IconArrowUpRight,
+  IconCalendarDue,
+  IconClockExclamation,
   IconPigMoney,
+  IconTargetArrow,
   IconWallet,
 } from "@tabler/icons-react";
 import { EmptyState } from "@/components/empty-state";
@@ -31,6 +34,23 @@ type Summary = {
     spent: number;
     available: number;
   }[];
+  accountBalances: { currency: string; balance: number }[];
+  pendingCount: number;
+  primaryGoal: {
+    id: string;
+    name: string;
+    target_amount: number;
+    current_amount: number;
+    currency: string;
+    target_date: string | null;
+  } | null;
+  nextPayment: {
+    merchant: string | null;
+    description: string | null;
+    amount: number;
+    currency: string;
+    next_execution_date: string;
+  } | null;
   today: TransactionWithCategory[];
   categories: {
     category_id: string;
@@ -109,6 +129,28 @@ export default function InicioPage() {
       balance.currency !== "UYU" &&
       (balance.income !== 0 || balance.savings !== 0 || balance.spent !== 0)
   );
+  const now = new Date();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const daysRemaining = Math.max(
+    1,
+    Math.ceil((monthEnd.getTime() - now.getTime()) / 86_400_000)
+  );
+  const spendable = Math.max(0, primaryBalance?.available ?? available);
+  const dailyAvailable = spendable / daysRemaining;
+  const weeklyAvailable = Math.min(spendable, dailyAvailable * 7);
+  const overBudgetCategory = summary?.categories.find(
+    (category) => category.overBudget
+  );
+  const recommendation =
+    (primaryBalance?.available ?? available) < 0
+      ? "Tus compromisos superan el ingreso del mes. Revisá ahorros reservados y gastos próximos."
+      : overBudgetCategory
+        ? `Superaste el presupuesto de ${overBudgetCategory.name}. Conviene frenar gastos de esa categoría.`
+        : summary?.pendingCount
+          ? `Tenés ${summary.pendingCount} movimiento${summary.pendingCount === 1 ? "" : "s"} pendiente${summary.pendingCount === 1 ? "" : "s"} de confirmar.`
+          : (primaryBalance?.savings ?? 0) > 0
+            ? "Tu ahorro ya está separado del dinero disponible. Vas por buen camino."
+            : "Definí una meta o un ahorro mensual para proteger parte de tus ingresos.";
 
   return (
     <div className="space-y-7 pb-5">
@@ -180,6 +222,130 @@ export default function InicioPage() {
           </span>
           <span className="text-lg text-[var(--color-muted)]">›</span>
         </Link>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        <div className="app-card p-4">
+          <p className="text-xs text-[var(--color-muted)]">Por semana</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {formatCurrency(weeklyAvailable, "UYU")}
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            Aproximado
+          </p>
+        </div>
+        <div className="app-card p-4">
+          <p className="text-xs text-[var(--color-muted)]">Por día</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums">
+            {formatCurrency(dailyAvailable, "UYU")}
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            {daysRemaining} días restantes
+          </p>
+        </div>
+      </section>
+
+      {(summary?.accountBalances?.length ?? 0) > 0 ? (
+        <section className="space-y-3">
+          <h2 className="section-label">Saldo en cuentas</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {summary!.accountBalances.map((item) => (
+              <div
+                key={item.currency}
+                className="app-card min-w-[145px] flex-1 p-4"
+              >
+                <p className="text-xs font-semibold text-[var(--color-muted)]">
+                  {item.currency}
+                </p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {formatCurrency(item.balance, item.currency)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {summary?.primaryGoal || summary?.nextPayment || summary?.pendingCount ? (
+        <section className="space-y-2">
+          <h2 className="section-label">En foco</h2>
+          {summary.primaryGoal ? (
+            <Link
+              href="/finanzas"
+              className="pressable app-card flex min-h-16 items-center gap-3 px-4 py-3"
+            >
+              <IconTargetArrow className="text-[var(--color-accent)]" size={23} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
+                  {summary.primaryGoal.name}
+                </p>
+                <p className="text-xs text-[var(--color-muted)]">
+                  {Math.min(
+                    100,
+                    Math.round(
+                      (Number(summary.primaryGoal.current_amount) /
+                        Number(summary.primaryGoal.target_amount)) *
+                        100
+                    )
+                  )}
+                  % de la meta
+                </p>
+              </div>
+              <span className="text-sm font-semibold tabular-nums">
+                {formatCurrency(
+                  Number(summary.primaryGoal.current_amount),
+                  summary.primaryGoal.currency
+                )}
+              </span>
+            </Link>
+          ) : null}
+          {summary.nextPayment ? (
+            <div className="app-card flex min-h-16 items-center gap-3 px-4 py-3">
+              <IconCalendarDue className="text-orange-500" size={23} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
+                  {summary.nextPayment.merchant ||
+                    summary.nextPayment.description ||
+                    "Próximo pago"}
+                </p>
+                <p className="text-xs text-[var(--color-muted)]">
+                  {new Intl.DateTimeFormat("es-UY", {
+                    day: "numeric",
+                    month: "short",
+                  }).format(
+                    new Date(`${summary.nextPayment.next_execution_date}T12:00:00`)
+                  )}
+                </p>
+              </div>
+              <span className="text-sm font-semibold">
+                {formatCurrency(
+                  Number(summary.nextPayment.amount),
+                  summary.nextPayment.currency
+                )}
+              </span>
+            </div>
+          ) : null}
+          {summary.pendingCount > 0 ? (
+            <div className="app-card flex min-h-16 items-center gap-3 px-4 py-3">
+              <IconClockExclamation className="text-amber-500" size={23} />
+              <p className="text-sm font-medium">
+                {summary.pendingCount} movimiento
+                {summary.pendingCount === 1 ? "" : "s"} pendiente
+                {summary.pendingCount === 1 ? "" : "s"} de confirmar
+              </p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className="app-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="section-label">Recomendación</h2>
+          <span className="rounded-full bg-[var(--color-accent)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-accent)]">
+            Sin IA
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed">{recommendation}</p>
       </section>
 
       {secondaryBalances.length > 0 ? (

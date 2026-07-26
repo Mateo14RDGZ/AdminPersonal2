@@ -49,6 +49,20 @@ export function sourceLabel(source: string): string {
   switch (source) {
     case "shortcut":
       return "Automático";
+    case "siri":
+      return "Siri";
+    case "voice":
+      return "Voz";
+    case "text":
+      return "Texto";
+    case "import":
+      return "Importado";
+    case "receipt":
+      return "Comprobante";
+    case "recurring":
+      return "Recurrente";
+    case "system":
+      return "Sistema";
     case "email":
       return "Email";
     default:

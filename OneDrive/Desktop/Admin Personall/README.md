@@ -1,6 +1,8 @@
-# Gastos — PWA personal de administración de gastos
+# LaPesadilla Finanzas — asistente financiero personal
 
-PWA privada de un solo usuario para registrar gastos en iPhone (Safari), con ingesta automática desde Atajos de iOS y Web Push nativo.
+PWA multiusuario para administrar cuentas, gastos, ingresos, transferencias,
+tarjetas, metas y pagos recurrentes desde iPhone. Incluye registro rápido,
+parser local en español, importación CSV y automatización con Siri.
 
 ## Stack
 
@@ -29,6 +31,9 @@ Copiá `.env.example` a `.env.local` y completá los valores:
 | `SUPABASE_SERVICE_ROLE_KEY` | Alternativa legacy a la secret key |
 | `INGEST_SECRET` | Bearer token para Atajos / email |
 | `INGEST_USER_ID` | UUID de tu usuario en `auth.users` |
+| `APP_BASE_URL` | URL pública usada en enlaces de confirmación |
+| `AUTOMATION_TOKEN_PEPPER` | Secreto aleatorio para reforzar hashes de tokens |
+| `AI_API_KEY`, `AI_MODEL`, `AI_PROVIDER` | Opcionales; la app funciona sin IA |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Misma clave pública VAPID (cliente) |
 | `VAPID_SUBJECT` | Opcional, p. ej. `mailto:tu@email.com` |
@@ -58,8 +63,8 @@ Abrí [http://localhost:3000](http://localhost:3000).
    - `http://localhost:3000/auth/callback`
    - `https://tu-dominio.vercel.app/auth/callback`
 
-4. En **Authentication → Providers**, mantené habilitado **Email**. El acceso
-   utiliza un enlace mágico sin contraseña.
+4. En **Authentication → Providers**, mantené habilitado **Email**. La app usa
+   correo y contraseña, sin depender de enlaces mágicos.
 
 5. Tras el primer login, copiá tu `user id` desde **Authentication → Users** y ponelo en `INGEST_USER_ID`.
 
@@ -73,7 +78,31 @@ npx web-push generate-vapid-keys
 
 Pegá la clave pública en `VAPID_PUBLIC_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, y la privada en `VAPID_PRIVATE_KEY`.
 
-## Atajos de iOS (ingesta)
+## Siri y Apple Shortcuts
+
+1. Abrí **Ajustes → Siri y automatizaciones** en la app.
+2. Generá y copiá un token; se muestra completo una sola vez.
+3. En Atajos, creá “Anotá un gasto” con la acción **Dictar texto**.
+4. Agregá **Obtener contenido de URL**, método `POST`.
+5. Usá `https://la-pesadilla-finanzas.vercel.app/api/parse-transaction`.
+6. Agregá `Authorization: Bearer TU_TOKEN` y `Content-Type: application/json`.
+7. Enviá:
+
+```json
+{
+  "text": "[Texto dictado]",
+  "source": "siri",
+  "timezone": "America/Montevideo",
+  "idempotencyKey": "[Identificador único]"
+}
+```
+
+8. Mostrá o pronunciá el campo `message`. Si llega `confirmationUrl`, abrilo
+   para revisar los datos ambiguos.
+
+El token se almacena como hash, es revocable y no usa la cookie de la app.
+
+## Atajos de iOS (endpoint antiguo)
 
 POST a `https://tu-dominio.vercel.app/api/ingest/shortcut`
 
@@ -119,6 +148,12 @@ Body JSON:
 |--------|------|------|
 | POST/GET | `/api/transactions` | Sesión Supabase |
 | PATCH/DELETE | `/api/transactions/[id]` | Sesión |
+| POST | `/api/transactions/quick` | Sesión o token |
+| POST | `/api/parse-transaction` | Sesión o token |
+| GET/POST | `/api/accounts`, `/api/cards`, `/api/goals`, `/api/recurring` | Sesión |
+| GET/POST/DELETE | `/api/automations/tokens` | Sesión |
+| GET/POST | `/api/automations/test` | Token |
+| POST | `/api/import/csv` | Sesión |
 | GET | `/api/budgets/summary?month=YYYY-MM` | Sesión |
 | POST | `/api/push/subscribe`, `/api/push/unsubscribe` | Sesión |
 | GET | `/api/export/csv` | Sesión |
@@ -130,10 +165,15 @@ Body JSON:
 - Estados vacíos en inicio, movimientos y categorías
 - Seed de 8 categorías al crear usuario
 - Cola offline en `localStorage` si falla el POST al agregar un gasto
+- Confirmaciones pendientes para frases ambiguas
+- Exportación completa JSON sin tokens, hashes ni secretos
 
 ## Scripts
 
 - `npm run dev` — desarrollo
+- `npm run lint` — análisis estático
+- `npm run typecheck` — comprobación TypeScript
+- `npm test` — pruebas del parser y cálculos financieros
 - `npm run build` — producción + PWA
 - `npm run start` — servidor de producción
 - `node scripts/generate-icons.mjs` — iconos PWA

@@ -101,7 +101,10 @@ export function SwipeTransactionRow({
   const category = transaction.categories;
   const secondary = `${sourceLabel(transaction.source)} · ${formatTime(
     transaction.occurred_at
-  )}`;
+  )} · ${transaction.currency}`;
+  const isPositive = ["INCOME", "REFUND", "LOAN_RECEIVED"].includes(
+    transaction.type
+  );
 
   return (
     <div className="swipe-row relative overflow-hidden rounded-[18px]">
@@ -149,8 +152,13 @@ export function SwipeTransactionRow({
           </p>
           <p className="text-xs text-[var(--color-muted)]">{secondary}</p>
         </div>
-        <p className="amount-lg shrink-0">
-          {formatCurrency(Number(transaction.amount))}
+        <p
+          className={`amount-lg shrink-0 ${
+            isPositive ? "text-emerald-500" : ""
+          }`}
+        >
+          {isPositive ? "+" : transaction.type === "TRANSFER" ? "" : "−"}
+          {formatCurrency(Number(transaction.amount), transaction.currency)}
         </p>
       </div>
     </div>
