@@ -29,10 +29,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface-elevated)]/92 shadow-[0_-12px_35px_-30px_rgba(0,0,0,0.45)] backdrop-blur-2xl safe-bottom"
+      className="fixed bottom-0 left-0 right-0 z-50 px-3 safe-bottom"
       aria-label="Principal"
     >
-      <div className="mx-auto grid w-full max-w-[430px] grid-cols-5 items-end px-1 pb-1.5 pt-1.5">
+      <div className="mx-auto grid w-full max-w-[450px] grid-cols-5 items-end rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-1 pb-1.5 pt-1.5 shadow-[0_18px_45px_-25px_rgba(0,0,0,.45)]">
         {tabs.map((tab) => {
           const active = pathname === tab.href;
           const Icon = tab.icon;
@@ -44,7 +44,7 @@ export function BottomNav() {
                 href={tab.href}
                 prefetch
                 aria-label={tab.label}
-                className="pressable -mt-6 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent)] text-white shadow-[0_10px_28px_-8px_rgba(29,158,117,0.7)]"
+                className="pressable -mt-7 mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-[21px] bg-[var(--color-accent)] text-white shadow-[0_14px_30px_-10px_rgba(217,100,61,.8)]"
               >
                 <Icon size={28} stroke={2.25} />
               </Link>

@@ -12,8 +12,8 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="screen-height safe-top mx-auto flex w-full max-w-[430px] flex-col pb-24">
-      <main className="flex-1 px-3.5 pt-3 min-[390px]:px-5 min-[390px]:pt-4">
+    <div className="screen-height safe-top mx-auto flex w-full max-w-[480px] flex-col pb-28">
+      <main className="flex-1 px-4 pt-4 min-[390px]:px-5 min-[390px]:pt-5">
         <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav />
