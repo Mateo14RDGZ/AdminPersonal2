@@ -15,6 +15,7 @@ const schema = z.object({
     amount: z.number().finite().nullable(),
     target_amount: z.number().finite().nullable(),
     date: z.string().nullable(),
+    color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable(),
   }),
 });
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!data.name) return NextResponse.json({ error: "Falta el nombre de la categoria." }, { status: 400 });
     const { data: category, error: categoryError } = await supabase
       .from("categories")
-      .insert({ user_id: user.id, name: data.name, icon: "tag", color: "#22a06b" })
+      .insert({ user_id: user.id, name: data.name, icon: "tag", color: data.color ?? "#64748B" })
       .select("id,name")
       .single();
     if (categoryError) return NextResponse.json({ error: categoryError.message }, { status: 500 });

@@ -11,8 +11,11 @@ describe("simpleAssistantPlan", () => {
   it("creates a named account locally", () => {
     expect(simpleAssistantPlan("crea una cuenta llamada itau")).toMatchObject({ action: "create_account", data: { name: "itau", account_type: "CHECKING", currency: "UYU" } });
   });
-  it("creates a named category locally", () => {
-    expect(simpleAssistantPlan("crea una categoria llamada viajes")).toMatchObject({ action: "create_category", data: { name: "viajes" } });
+  it("asks for a category color before proposing creation", () => {
+    const initial = simpleAssistantPlan("crea una categoria llamada viajes");
+    expect(initial).toMatchObject({ action: "reply", data: { name: "viajes" } });
+    expect(initial?.message).toContain("color");
+    expect(simpleAssistantPlan("azul", [{ role: "assistant", content: initial!.message }])).toMatchObject({ action: "create_category", data: { name: "viajes", color: "#4F6DF5" } });
   });
   it("sends complex requests to AI", () => {
     expect(simpleAssistantPlan("Crea una cuenta para los gastos que hago en viajes y organiza todo")).toBeNull();
