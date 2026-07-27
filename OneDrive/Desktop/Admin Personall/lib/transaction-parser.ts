@@ -148,6 +148,7 @@ function detectType(text: string): TransactionType {
     return "REFUND";
   if (/\b(cobre|cobré|depositaron|recibi|ingreso|sueldo)\b/.test(text))
     return "INCOME";
+  if (/\b(me entraron|me pagaron|me ingresaron)\b/.test(text)) return "INCOME";
   return "EXPENSE";
 }
 
@@ -194,10 +195,11 @@ function extractAccountHints(text: string, type: TransactionType) {
     };
   }
   const match = text.match(/\b(?:del|de la|desde)\s+([\p{L}\p{N} -]+?)\s+(?:en|para)\s+/u)
+    ?? text.match(/\b(?:desde|con)\s+(?:mi |la |el )?([\p{L}\p{N} -]+?)(?:\s+(?:en|para)\s+|$)/u)
     ?? text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u)
     ?? text.match(/\b(?:with|using)\s+([\p{L}\p{N} -]+)$/u);
   return {
-    accountHint: match?.[1]?.trim() ?? null,
+    accountHint: match?.[1]?.trim().replace(/^(?:el|la|mi)\s+/i, "") ?? null,
     destinationAccountHint: null,
   };
 }
@@ -208,6 +210,8 @@ function extractMerchant(text: string, type: TransactionType): string | null {
     /\ben\s+(?:la |el )?(.+?)(?:\s+con\s+[\p{L}\p{N} -]+)?$/u
   );
   if (inMatch?.[1]) return titleCase(inMatch[1]);
+  const casualMatch = text.match(/\b(?:se me fueron|me cobraron|pague)\s+.+?\s+(?:en|de)\s+(?:la |el )?(.+)$/u);
+  if (casualMatch?.[1]) return titleCase(casualMatch[1]);
   const itemMatch = text.match(
     /\b(?:compre|pague|gaste|i bought|i paid|i spent)\s+(?:un |una |el |la |a |an )?([\p{L} -]+?)\s+(?:por|de|for)\s+/u
   );

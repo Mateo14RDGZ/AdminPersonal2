@@ -9,6 +9,7 @@ import { parseTransactionSchema } from "@/lib/validation";
 import { formatCurrency } from "@/lib/format";
 import { databaseTransactionSource } from "@/lib/database-source";
 import { sendPushToUser } from "@/lib/push-server";
+import { matchCategoryFromRules } from "@/lib/categorize";
 
 export async function POST(request: NextRequest) {
   let json: unknown;
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
   }
 
   const interpretation = await transactionParser.parse(parsedBody.data);
-  const [{ data: accounts }, { data: categories }] = await Promise.all([
+  const [{ data: accounts }, { data: categories }, { data: merchantRules }] = await Promise.all([
     supabase
       .from("accounts")
       .select("id,name,institution,currency,is_default")
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest) {
     supabase
       .from("categories")
       .select("id,name")
+      .eq("user_id", userId),
+    supabase
+      .from("merchant_rules")
+      .select("*")
       .eq("user_id", userId),
   ]);
 
@@ -98,7 +103,10 @@ export async function POST(request: NextRequest) {
         )
       )
     : null;
-  const category = interpretation.categoryHint
+  const categoryFromRuleId = matchCategoryFromRules(interpretation.merchant, merchantRules ?? []);
+  const category = categoryFromRuleId
+    ? (categories ?? []).find((candidate) => candidate.id === categoryFromRuleId)
+    : interpretation.categoryHint
     ? (categories ?? []).find(
         (candidate) =>
           normalizeText(candidate.name) ===

@@ -38,4 +38,18 @@ describe("LocalTransactionParser", () => {
     expect(result.accountHint).toBe("efectivo");
     expect(result.merchant).toBe("Makelele");
   });
+
+  it("understands a casual spoken expense and account", async () => {
+    const result = await transactionParser.parse({ text: "se me fueron 620 pesos desde el efectivo en Makelele" });
+    expect(result.type).toBe("EXPENSE");
+    expect(result.amount).toBe(620);
+    expect(result.accountHint).toBe("efectivo");
+    expect(result.merchant).toBe("Makelele");
+  });
+
+  it("understands a conversational income", async () => {
+    const result = await transactionParser.parse({ text: "me entraron 38600 pesos del sueldo" });
+    expect(result.type).toBe("INCOME");
+    expect(result.amount).toBe(38600);
+  });
 });

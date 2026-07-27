@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  action: z.enum(["create_account", "create_category", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
+  action: z.enum(["create_account", "create_category", "update_account_balance", "delete_account", "add_savings_plan", "add_income_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
   data: z.object({
     account_id: z.string().uuid().nullable(),
     category_id: z.string().uuid().nullable(),
@@ -139,8 +139,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: `Presupuesto de ${category.name} actualizado.` });
   }
 
-  if (!data.name || !data.currency || !data.amount || data.amount <= 0) return NextResponse.json({ error: "Faltan datos del ahorro." }, { status: 400 });
-  const { error: savingsError } = await supabase.from("financial_entries").insert({ user_id: user.id, kind: "saving", name: data.name, amount: data.amount, currency: data.currency, is_recurring: false, occurred_at: new Date().toISOString().slice(0, 10) });
-  if (savingsError) return NextResponse.json({ error: savingsError.message }, { status: 500 });
-  return NextResponse.json({ message: "Ahorro reservado agregado." });
+  if (!data.name || !data.currency || !data.amount || data.amount <= 0) return NextResponse.json({ error: "Faltan datos." }, { status: 400 });
+  const kind = action === "add_income_plan" ? "income" : "saving";
+  const { error: entryError } = await supabase.from("financial_entries").insert({ user_id: user.id, kind, name: data.name, amount: data.amount, currency: data.currency, is_recurring: action === "add_income_plan", occurred_at: new Date().toISOString().slice(0, 10) });
+  if (entryError) return NextResponse.json({ error: entryError.message }, { status: 500 });
+  return NextResponse.json({ message: action === "add_income_plan" ? "Ingreso recurrente configurado." : "Ahorro reservado agregado." });
 }
