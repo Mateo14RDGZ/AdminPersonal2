@@ -35,7 +35,7 @@ export function MoneyChat({ onRegistered }: Props) {
       }
       const nextPlan = data.plan as Plan;
       setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
-      setPlan(nextPlan.action === "reply" ? null : nextPlan);
+      setPlan(nextPlan);
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
     } finally { setSending(false); }
@@ -43,6 +43,10 @@ export function MoneyChat({ onRegistered }: Props) {
 
   const confirmPlan = async () => {
     if (!plan || sending) return;
+    if (plan.action === "reply") {
+      setPlan(null);
+      return;
+    }
     setSending(true);
     try {
       if (plan.action === "register_movement") {
