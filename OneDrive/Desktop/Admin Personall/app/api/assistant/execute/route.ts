@@ -4,14 +4,17 @@ import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  action: z.enum(["create_account", "update_account_balance", "delete_account", "add_savings_plan"]),
+  action: z.enum(["create_account", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
   data: z.object({
     account_id: z.string().uuid().nullable(),
+    category_id: z.string().uuid().nullable(),
     name: z.string().nullable(),
     institution: z.string().nullable(),
     account_type: z.enum(["CASH", "CHECKING", "SAVINGS", "DIGITAL_WALLET", "OTHER"]).nullable(),
     currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
     amount: z.number().finite().nullable(),
+    target_amount: z.number().finite().nullable(),
+    date: z.string().nullable(),
   }),
 });
 
@@ -76,6 +79,52 @@ export async function POST(request: NextRequest) {
       if (replacement) await supabase.from("accounts").update({ is_default: true }).eq("id", replacement.id);
     }
     return NextResponse.json({ message: "Cuenta eliminada del resumen." });
+  }
+
+  if (action === "create_card") {
+    if (!data.name || !data.currency || data.amount == null || data.amount < 0) return NextResponse.json({ error: "Faltan datos de la tarjeta." }, { status: 400 });
+    const { data: card, error: cardError } = await supabase
+      .from("credit_cards")
+      .insert({ user_id: user.id, name: data.name, institution: data.institution, currency: data.currency, credit_limit: data.amount, current_used_amount: 0 })
+      .select("id,name")
+      .single();
+    if (cardError) return NextResponse.json({ error: cardError.message }, { status: 500 });
+    return NextResponse.json({ message: `Tarjeta ${card.name} creada.`, card });
+  }
+
+  if (action === "create_goal") {
+    if (!data.name || !data.currency || !data.target_amount || data.target_amount <= 0) return NextResponse.json({ error: "Faltan datos de la meta." }, { status: 400 });
+    const { data: goal, error: goalError } = await supabase
+      .from("savings_goals")
+      .insert({ user_id: user.id, name: data.name, currency: data.currency, target_amount: data.target_amount, current_amount: Math.max(0, data.amount ?? 0), target_date: data.date || null, is_primary: false })
+      .select("id,name")
+      .single();
+    if (goalError) return NextResponse.json({ error: goalError.message }, { status: 500 });
+    return NextResponse.json({ message: `Meta ${goal.name} creada.`, goal });
+  }
+
+  if (action === "create_recurring_payment") {
+    if (!data.name || !data.currency || !data.amount || data.amount <= 0 || !data.date) return NextResponse.json({ error: "Faltan datos del pago recurrente." }, { status: 400 });
+    const { error: recurringError } = await supabase.from("recurring_transactions").insert({
+      user_id: user.id, type: "EXPENSE", merchant: data.name, amount: data.amount, currency: data.currency,
+      account_id: data.account_id, frequency: "MONTHLY", next_execution_date: data.date, auto_create: false,
+    });
+    if (recurringError) return NextResponse.json({ error: recurringError.message }, { status: 500 });
+    return NextResponse.json({ message: "Pago mensual programado." });
+  }
+
+  if (action === "set_category_budget") {
+    if (!data.category_id || data.amount == null || data.amount < 0) return NextResponse.json({ error: "Falta la categoría o el monto." }, { status: 400 });
+    const { data: category, error: categoryError } = await supabase
+      .from("categories")
+      .update({ monthly_budget: data.amount })
+      .eq("id", data.category_id)
+      .eq("user_id", user.id)
+      .select("name")
+      .maybeSingle();
+    if (categoryError) return NextResponse.json({ error: categoryError.message }, { status: 500 });
+    if (!category) return NextResponse.json({ error: "Categoría no disponible." }, { status: 404 });
+    return NextResponse.json({ message: `Presupuesto de ${category.name} actualizado.` });
   }
 
   if (!data.name || !data.currency || !data.amount || data.amount <= 0) return NextResponse.json({ error: "Faltan datos del ahorro." }, { status: 400 });
