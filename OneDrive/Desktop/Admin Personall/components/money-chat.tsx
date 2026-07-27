@@ -4,12 +4,18 @@ import { FormEvent, useState } from "react";
 import { IconArrowUpRight, IconMessageCircle } from "@tabler/icons-react";
 
 type Message = { role: "assistant" | "user"; text: string };
+type Plan = {
+  action: "reply" | "register_movement" | "create_account" | "update_account_balance" | "delete_account" | "add_savings_plan";
+  message: string;
+  data: { raw_text: string | null; account_id: string | null; name: string | null; institution: string | null; account_type: string | null; currency: string | null; amount: number | null };
+};
 
 type Props = { onRegistered: () => void };
 
 export function MoneyChat({ onRegistered }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [plan, setPlan] = useState<Plan | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -25,16 +31,11 @@ export function MoneyChat({ onRegistered }: Props) {
     setText("");
     setSending(true);
     try {
-      const response = await fetch("/api/parse-transaction", {
+      const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: value,
-          source: "text",
-          timezone: "America/Montevideo",
-          dryRun: false,
-          defaultCurrency: "UYU",
-          idempotencyKey: crypto.randomUUID(),
         }),
       });
       const data = await response.json().catch(() => null);
@@ -45,15 +46,44 @@ export function MoneyChat({ onRegistered }: Props) {
         ]);
         return;
       }
-      setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Movimiento procesado." }]);
-      if (data.requiresConfirmation && data.confirmationUrl) {
-        window.location.assign(data.confirmationUrl);
-        return;
-      }
-      onRegistered();
-      window.dispatchEvent(new Event("finance-data-changed"));
+      const nextPlan = data.plan as Plan;
+      setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
+      setPlan(nextPlan.action === "reply" ? null : nextPlan);
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const confirmPlan = async () => {
+    if (!plan || sending) return;
+    setSending(true);
+    try {
+      if (plan.action === "register_movement") {
+        const response = await fetch("/api/parse-transaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo registrar el movimiento.");
+        if (data.requiresConfirmation && data.confirmationUrl) {
+          window.location.assign(data.confirmationUrl);
+          return;
+        }
+        setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Movimiento registrado." }]);
+      } else {
+        const response = await fetch("/api/assistant/execute", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo completar la acción.");
+        setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Acción completada." }]);
+      }
+      setPlan(null);
+      onRegistered();
+      window.dispatchEvent(new Event("finance-data-changed"));
+    } catch (error) {
+      setMessages((current) => [...current, { role: "assistant", text: error instanceof Error ? error.message : "No se pudo completar la acción." }]);
     } finally {
       setSending(false);
     }
@@ -81,6 +111,7 @@ export function MoneyChat({ onRegistered }: Props) {
           <IconArrowUpRight size={21} />
         </button>
       </form>
+      {plan ? <div className="flex gap-2 border-t border-[var(--color-border)] bg-amber-500/5 p-3"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex-1 rounded-xl bg-[var(--color-accent)] py-2.5 text-sm font-semibold text-white">Confirmar acción</button><button type="button" onClick={() => setPlan(null)} disabled={sending} className="pressable rounded-xl border border-[var(--color-border)] px-4 text-sm">Cancelar</button></div> : null}
     </section>
   );
 }
