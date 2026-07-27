@@ -87,6 +87,16 @@ export default function ConfirmarPage() {
     router.replace("/inicio");
   };
 
+  const discard = async () => {
+    if (saving || !window.confirm("Descartar este movimiento pendiente? No se guardara ningun gasto.")) return;
+    setSaving(true);
+    const response = await fetch(`/api/confirmations/${id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!response.ok) { setError("No se pudo descartar el movimiento."); return; }
+    window.dispatchEvent(new Event("finance-data-changed"));
+    router.replace("/inicio");
+  };
+
   if (loading) return <div className="skeleton h-80 rounded-[24px]" />;
   if (error && !payload.amount) {
     return <p className="app-card p-5 text-sm text-red-500">{error}</p>;
@@ -184,6 +194,14 @@ export default function ConfirmarPage() {
           className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white"
         >
           Confirmar y guardar
+        </button>
+        <button
+          type="button"
+          onClick={() => void discard()}
+          disabled={saving}
+          className="pressable min-h-12 w-full rounded-2xl border border-red-400/35 bg-red-500/8 text-sm font-semibold text-red-500"
+        >
+          Eliminar movimiento pendiente
         </button>
       </form>
     </div>

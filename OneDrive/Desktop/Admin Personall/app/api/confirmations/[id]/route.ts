@@ -77,3 +77,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .eq("user_id", user.id);
   return NextResponse.json({ success: true, transaction: data });
 }
+
+export async function DELETE(_request: NextRequest, { params }: Params) {
+  const { user, error } = await requireUser();
+  if (error) return error;
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data, error: updateError } = await supabase
+    .from("pending_transaction_confirmations")
+    .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Confirmacion no disponible" }, { status: 404 });
+  return NextResponse.json({ success: true });
+}
