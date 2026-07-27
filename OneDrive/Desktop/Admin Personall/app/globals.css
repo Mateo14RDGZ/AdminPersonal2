@@ -263,6 +263,10 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     max-height: 14rem;
     opacity: 1;
     transform: translateY(0);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
   .assistant-confirm { animation: confirm-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   .liquid-nav {
