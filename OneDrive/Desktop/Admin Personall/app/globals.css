@@ -260,7 +260,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   }
   .assistant-card-conversation > .relative:nth-of-type(4) {
     display: block;
-    max-height: 14rem;
+    max-height: 20rem;
     opacity: 1;
     transform: translateY(0);
     overflow-y: auto;

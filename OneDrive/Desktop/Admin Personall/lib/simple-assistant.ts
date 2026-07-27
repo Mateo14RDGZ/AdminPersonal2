@@ -20,13 +20,6 @@ function colorFor(text: string): string | null {
 }
 const emptyData = { raw_text: null, account_id: null, category_id: null, name: null, institution: null, account_type: null, currency: "UYU", amount: null, target_amount: null, date: null, color: null };
 
-function accountPlan(compact: string, normalized: string): SimpleAssistantPlan | null {
-  if (!/\b(cuenta|account)\b/i.test(normalized) || !/\b(crea|crear|agrega|agregar|nueva|nuevo|add|create|new)\b/i.test(normalized)) return null;
-  const name = compact.match(/\b(?:llamada|llamado|named)\s+(.+)$/i)?.[1]?.trim();
-  if (!name || name.length > 60) return null;
-  return { action: "create_account", message: `Voy a crear la cuenta ${name} en UYU. Confirmala para guardarla.`, data: { ...emptyData, name, account_type: "CHECKING" } };
-}
-
 function categoryPlan(compact: string, normalized: string): SimpleAssistantPlan | null {
   if (!/\b(categoria|category)\b/i.test(normalized) || !/\b(crea|crear|agrega|agregar|nueva|nuevo|add|create|new)\b/i.test(normalized)) return null;
   const name = compact.match(/\b(?:llamada|llamado|named)\s+(.+)$/i)?.[1]?.trim();
@@ -49,8 +42,6 @@ export function simpleAssistantPlan(text: string, history: HistoryMessage[] = []
   const compact = text.trim();
   const normalized = normalize(compact);
   if (!compact || compact.length > 180) return null;
-  const account = accountPlan(compact, normalized);
-  if (account) return account;
   const category = categoryPlan(compact, normalized);
   if (category) return category;
   const categoryColor = categoryColorReply(compact, history);

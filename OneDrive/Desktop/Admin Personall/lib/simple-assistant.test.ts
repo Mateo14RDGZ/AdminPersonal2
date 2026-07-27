@@ -8,8 +8,8 @@ describe("simpleAssistantPlan", () => {
   it("keeps dollars as USD", () => {
     expect(simpleAssistantPlan("Ahorr\u00e9 200 d\u00f3lares")?.data.currency).toBe("USD");
   });
-  it("creates a named account locally", () => {
-    expect(simpleAssistantPlan("crea una cuenta llamada itau")).toMatchObject({ action: "create_account", data: { name: "itau", account_type: "CHECKING", currency: "UYU" } });
+  it("sends account setup to the guided assistant", () => {
+    expect(simpleAssistantPlan("crea una cuenta llamada itau")).toBeNull();
   });
   it("asks for a category color before proposing creation", () => {
     const initial = simpleAssistantPlan("crea una categoria llamada viajes");
