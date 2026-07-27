@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
   const { from, to } = monthRange(month);
   const monthStart = `${month}-01`;
   const [year, monthNumber] = month.split("-").map(Number);
+  const previousMonthDate = new Date(Date.UTC(year, monthNumber - 2, 1));
+  const previousMonth = `${previousMonthDate.getUTCFullYear()}-${String(previousMonthDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  const previousRange = monthRange(previousMonth);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0))
     .toISOString()
     .slice(0, 10);
@@ -21,6 +24,7 @@ export async function GET(request: NextRequest) {
   const [
     categoryResult,
     transactionResult,
+    previousTransactionResult,
     financeResult,
     todayResult,
     accountResult,
@@ -40,6 +44,12 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .gte("occurred_at", from)
         .lte("occurred_at", to),
+      supabase
+        .from("transactions")
+        .select("amount, category_id, type, currency, status")
+        .eq("user_id", user.id)
+        .gte("occurred_at", previousRange.from)
+        .lte("occurred_at", previousRange.to),
       supabase
         .from("financial_entries")
         .select("kind, amount, currency, is_recurring, occurred_at")
@@ -87,6 +97,7 @@ export async function GET(request: NextRequest) {
   const firstError =
     categoryResult.error ??
     transactionResult.error ??
+    previousTransactionResult.error ??
     financeResult.error ??
     todayResult.error ??
     accountResult.error ??
@@ -100,6 +111,7 @@ export async function GET(request: NextRequest) {
 
   const transactions = transactionResult.data ?? [];
   const spentByCategory = new Map<string | null, number>();
+  const previousSpentByCategory = new Map<string | null, number>();
   for (const transaction of transactions) {
     if (
       transaction.type !== "EXPENSE" ||
@@ -113,6 +125,12 @@ export async function GET(request: NextRequest) {
       key,
       (spentByCategory.get(key) ?? 0) + Number(transaction.amount)
     );
+  }
+
+  for (const transaction of previousTransactionResult.data ?? []) {
+    if (transaction.type !== "EXPENSE" || transaction.currency !== "UYU" || transaction.status !== "CONFIRMED") continue;
+    const key = transaction.category_id;
+    previousSpentByCategory.set(key, (previousSpentByCategory.get(key) ?? 0) + Number(transaction.amount));
   }
 
   const totalSpent = transactions.reduce(
@@ -214,6 +232,7 @@ export async function GET(request: NextRequest) {
       color: category.color,
       budget,
       spent,
+      previousSpent: previousSpentByCategory.get(category.id) ?? 0,
       overBudget: budget != null && spent > budget,
     };
   });
