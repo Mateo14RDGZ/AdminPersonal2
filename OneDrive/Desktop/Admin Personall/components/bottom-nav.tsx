@@ -38,6 +38,11 @@ export function BottomNav() {
     if (!bounds) return activeIndex;
     return Math.max(0, Math.min(tabs.length - 1, Math.floor(((clientX - bounds.left) / bounds.width) * tabs.length)));
   };
+  const positionAt = (clientX: number) => {
+    const bounds = navRef.current?.getBoundingClientRect();
+    if (!bounds) return activeIndex;
+    return Math.max(0, Math.min(tabs.length - 1, ((clientX - bounds.left) / bounds.width) * tabs.length - 0.5));
+  };
 
   const finishLiquidDrag = (clientX: number) => {
     if (!dragging) return;
@@ -55,8 +60,8 @@ export function BottomNav() {
       <div
         ref={navRef}
         className="liquid-nav mx-auto grid w-full max-w-[450px] grid-cols-5 items-end rounded-[24px] border border-[var(--color-border)] px-1 pb-1.5 pt-1.5"
-        onPointerDown={(event) => { if (event.pointerType === "touch") { setDragging(true); setLiquidIndex(indexAt(event.clientX)); } }}
-        onPointerMove={(event) => { if (dragging) setLiquidIndex(indexAt(event.clientX)); }}
+        onPointerDown={(event) => { if (event.pointerType === "touch") { setDragging(true); setLiquidIndex(positionAt(event.clientX)); } }}
+        onPointerMove={(event) => { if (dragging) setLiquidIndex(positionAt(event.clientX)); }}
         onPointerUp={(event) => finishLiquidDrag(event.clientX)}
         onPointerCancel={() => { setDragging(false); setLiquidIndex(activeIndex); }}
       >

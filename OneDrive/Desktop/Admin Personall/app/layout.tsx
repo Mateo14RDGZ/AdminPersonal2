@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PendingSync } from "@/components/pending-sync";
+import { ThemeSync } from "@/components/theme-sync";
 
 export const metadata: Metadata = {
   title: "LaPesadilla Finanzas",
@@ -40,6 +41,7 @@ export default function RootLayout({
       </head>
       <body className="screen-height">
         <PendingSync />
+        <ThemeSync />
         {children}
       </body>
     </html>
