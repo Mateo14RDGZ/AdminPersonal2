@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { assistantTokensUsedThisMonth, logAssistantUsage, monthlyTokenLimit } from "@/lib/assistant-usage";
+import { simpleMovementPlan } from "@/lib/simple-assistant";
 
 const planSchema = z.object({
   action: z.enum(["reply", "register_movement", "create_account", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
@@ -24,6 +25,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text || text.length > 1000) return NextResponse.json({ error: "Escribí un mensaje válido." }, { status: 400 });
+
+  const simplePlan = simpleMovementPlan(text);
+  if (simplePlan) {
+    return NextResponse.json({ plan: simplePlan, requiresConfirmation: true, usedAI: false });
+  }
 
   const supabase = await createClient();
   const [accountsResult, categoriesResult, cardsResult, goalsResult, recurringResult] = await Promise.all([
