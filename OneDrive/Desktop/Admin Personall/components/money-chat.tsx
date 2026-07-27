@@ -29,7 +29,7 @@ export function MoneyChat({ onRegistered }: Props) {
     setText("");
     setSending(true);
     try {
-      const response = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: value }) });
+      const response = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: value, history: messages.slice(-8) }) });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         setMessages((current) => [...current, { role: "assistant", text: typeof data?.error === "string" ? data.error : "No pude entender ese mensaje." }]);
@@ -37,7 +37,7 @@ export function MoneyChat({ onRegistered }: Props) {
       }
       const nextPlan = data.plan as Plan;
       setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
-      setPlan(nextPlan);
+      setPlan(nextPlan.action === "reply" ? null : nextPlan);
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
     } finally { setSending(false); }

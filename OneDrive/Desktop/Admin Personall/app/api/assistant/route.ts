@@ -20,6 +20,13 @@ export async function POST(request: NextRequest) {
   if (session.error) return session.error;
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
+  const history = Array.isArray(body?.history)
+    ? body.history.slice(-8).flatMap((item) =>
+        item && typeof item === "object" && (item.role === "user" || item.role === "assistant") && typeof item.text === "string"
+          ? [{ role: item.role, content: item.text.slice(0, 1000) }]
+          : []
+      )
+    : [];
   if (!text || text.length > 1000) return NextResponse.json({ error: "Escribi un mensaje valido." }, { status: 400 });
   const localPlan = simpleAssistantPlan(text);
   if (localPlan) return NextResponse.json({ plan: localPlan, requiresConfirmation: true, usedAI: false });
@@ -35,14 +42,14 @@ export async function POST(request: NextRequest) {
     supabase.from("recurring_transactions").select("id,merchant,amount,currency,frequency,next_execution_date").eq("user_id", session.user.id).eq("is_active", true),
   ]);
   const context = JSON.stringify({ accounts: accounts.data ?? [], categories: categories.data ?? [], cards: cards.data ?? [], goals: goals.data ?? [], recurring: recurring.data ?? [] });
-  const system = `You control a personal finance app. Return ONLY valid JSON with action, message and data. Allowed actions: ${actions.join(", ")}. Use create_category for a new category. Never invent IDs. Financial changes must be proposed, not executed. Every data field raw_text, account_id, category_id, name, institution, account_type, currency, amount, target_amount and date must be present; use null when unused. User context: ${context}`;
+  const system = `You control a personal finance app. Return ONLY valid JSON with action, message and data. Allowed actions: ${actions.join(", ")}. Use create_category for a new category. Never invent IDs. Keep a natural Spanish conversation: when information is missing, use reply, ask one short question, and do not propose an action yet. When enough information exists, return the action so the user can confirm or cancel it. Financial changes must be proposed, not executed. Every data field raw_text, account_id, category_id, name, institution, account_type, currency, amount, target_amount and date must be present; use null when unused. User context: ${context}`;
   const limit = monthlyTokenLimit();
   let used = 0;
   try { used = await assistantTokensUsedThisMonth(session.user.id); } catch { return NextResponse.json({ error: "No se pudo verificar el uso de IA." }, { status: 503 }); }
   const estimated = Math.ceil((system.length + text.length) / 4) + 800;
   if (limit - used <= estimated) return NextResponse.json({ error: "Alcanzaste el limite mensual del asistente." }, { status: 429 });
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "gpt-5-mini", messages: [{ role: "system", content: system }, { role: "user", content: text }], response_format: { type: "json_object" }, reasoning_effort: "minimal", max_completion_tokens: Math.min(900, limit - used - estimated) }) });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "gpt-5-mini", messages: [{ role: "system", content: system }, ...history, { role: "user", content: text }], response_format: { type: "json_object" }, reasoning_effort: "minimal", max_completion_tokens: Math.min(900, limit - used - estimated) }) });
     const result = await response.json().catch(() => null);
     if (!response.ok) return NextResponse.json({ error: typeof result?.error?.message === "string" ? `La IA no esta disponible: ${result.error.message}` : "La IA no esta disponible." }, { status: 502 });
     const parsed = planSchema.safeParse(contentToJson(result?.choices?.[0]?.message?.content));
