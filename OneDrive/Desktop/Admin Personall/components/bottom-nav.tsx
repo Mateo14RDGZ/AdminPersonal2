@@ -32,7 +32,7 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 px-3 safe-bottom"
       aria-label="Principal"
     >
-      <div className="mx-auto grid w-full max-w-[450px] grid-cols-5 items-end rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-1 pb-1.5 pt-1.5 shadow-[0_18px_45px_-25px_rgba(0,0,0,.45)]">
+      <div className="liquid-nav mx-auto grid w-full max-w-[450px] grid-cols-5 items-end rounded-[24px] border border-[var(--color-border)] px-1 pb-1.5 pt-1.5">
         {tabs.map((tab) => {
           const active = pathname === tab.href;
           const Icon = tab.icon;
