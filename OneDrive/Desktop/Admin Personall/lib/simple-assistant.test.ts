@@ -11,6 +11,9 @@ describe("simpleAssistantPlan", () => {
   it("creates a named account locally", () => {
     expect(simpleAssistantPlan("crea una cuenta llamada itau")).toMatchObject({ action: "create_account", data: { name: "itau", account_type: "CHECKING", currency: "UYU" } });
   });
+  it("creates a named category locally", () => {
+    expect(simpleAssistantPlan("crea una categoria llamada viajes")).toMatchObject({ action: "create_category", data: { name: "viajes" } });
+  });
   it("sends complex requests to AI", () => {
     expect(simpleAssistantPlan("Crea una cuenta para los gastos que hago en viajes y organiza todo")).toBeNull();
   });

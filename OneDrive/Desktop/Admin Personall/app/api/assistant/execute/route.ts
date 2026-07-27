@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  action: z.enum(["create_account", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
+  action: z.enum(["create_account", "create_category", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
   data: z.object({
     account_id: z.string().uuid().nullable(),
     category_id: z.string().uuid().nullable(),
@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Acción inválida." }, { status: 400 });
   const { action, data } = parsed.data;
   const supabase = await createClient();
+
+  if (action === "create_category") {
+    if (!data.name) return NextResponse.json({ error: "Falta el nombre de la categoria." }, { status: 400 });
+    const { data: category, error: categoryError } = await supabase
+      .from("categories")
+      .insert({ user_id: user.id, name: data.name, icon: "tag", color: "#22a06b" })
+      .select("id,name")
+      .single();
+    if (categoryError) return NextResponse.json({ error: categoryError.message }, { status: 500 });
+    return NextResponse.json({ message: `Categoria ${category.name} creada.`, category });
+  }
 
   if (action === "create_account") {
     if (!data.name || !data.account_type || !data.currency) return NextResponse.json({ error: "Faltan datos de la cuenta." }, { status: 400 });

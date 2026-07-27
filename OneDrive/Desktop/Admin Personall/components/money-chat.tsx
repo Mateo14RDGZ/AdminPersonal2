@@ -5,7 +5,7 @@ import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconSparkles,
 
 type Message = { role: "assistant" | "user"; text: string };
 type Plan = {
-  action: "reply" | "register_movement" | "create_account" | "update_account_balance" | "delete_account" | "add_savings_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
+  action: "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
   message: string;
   data: { raw_text: string | null; account_id: string | null; category_id: string | null; name: string | null; institution: string | null; account_type: string | null; currency: string | null; amount: number | null; target_amount: number | null; date: string | null };
 };

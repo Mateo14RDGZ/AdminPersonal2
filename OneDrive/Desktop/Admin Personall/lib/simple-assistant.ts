@@ -1,5 +1,5 @@
 export type SimpleAssistantPlan = {
-  action: "register_movement" | "create_account";
+  action: "register_movement" | "create_account" | "create_category";
   message: string;
   data: { raw_text: string | null; account_id: null; category_id: null; name: string | null; institution: null; account_type: "CHECKING" | null; currency: string; amount: null; target_amount: null; date: null };
 };
@@ -17,6 +17,13 @@ function accountPlan(compact: string, normalized: string): SimpleAssistantPlan |
   return { action: "create_account", message: `Voy a crear la cuenta ${name} en UYU. Confirmala para guardarla.`, data: { raw_text: null, account_id: null, category_id: null, name, institution: null, account_type: "CHECKING", currency: "UYU", amount: null, target_amount: null, date: null } };
 }
 
+function categoryPlan(compact: string, normalized: string): SimpleAssistantPlan | null {
+  if (!/\b(categoria|category)\b/i.test(normalized) || !/\b(crea|crear|agrega|agregar|nueva|nuevo|add|create|new)\b/i.test(normalized)) return null;
+  const name = compact.match(/\b(?:llamada|llamado|named)\s+(.+)$/i)?.[1]?.trim();
+  if (!name || name.length > 60) return null;
+  return { action: "create_category", message: `Voy a crear la categoria ${name}. Confirmala para guardarla.`, data: { raw_text: null, account_id: null, category_id: null, name, institution: null, account_type: null, currency: "UYU", amount: null, target_amount: null, date: null } };
+}
+
 /** Uses existing endpoints after confirmation; it only avoids AI for explicit, short requests. */
 export function simpleAssistantPlan(text: string): SimpleAssistantPlan | null {
   const compact = text.trim();
@@ -24,6 +31,8 @@ export function simpleAssistantPlan(text: string): SimpleAssistantPlan | null {
   if (!compact || compact.length > 180) return null;
   const account = accountPlan(compact, normalized);
   if (account) return account;
+  const category = categoryPlan(compact, normalized);
+  if (category) return category;
   if (!MOVEMENT_WORDS.test(normalized) || !AMOUNT.test(normalized)) return null;
   return { action: "register_movement", message: "Entendi el movimiento. Revisalo y confirmalo para guardarlo.", data: { raw_text: compact, account_id: null, category_id: null, name: null, institution: null, account_type: null, currency: currencyFor(compact), amount: null, target_amount: null, date: null } };
 }
