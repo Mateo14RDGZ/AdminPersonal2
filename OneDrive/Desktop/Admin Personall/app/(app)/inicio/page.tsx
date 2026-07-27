@@ -84,14 +84,14 @@ export default function InicioPage() {
         </div>
         <Link
           href="/agregar"
-          className="pressable tap-target flex items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/15"
+          className="pressable tap-target flex items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-black/20"
           aria-label="Registrar movimiento"
         >
           <IconPlus size={23} />
         </Link>
       </header>
 
-      <section className="finance-hero page-enter-delay overflow-hidden rounded-[26px] p-5 text-white shadow-[0_18px_55px_-28px_rgba(5,70,54,0.85)]">
+      <section className="finance-hero page-enter-delay overflow-hidden rounded-[26px] p-5 text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,0.62)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm text-white/70">Saldo en tus cuentas</p>
