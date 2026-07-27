@@ -3,31 +3,20 @@ export const PARSE_TRANSACTION_ENDPOINT = `${AUTOMATION_BASE_URL}/api/parse-tran
 export const AUTOMATION_TEST_ENDPOINT = `${AUTOMATION_BASE_URL}/api/automations/test`;
 
 export function shortcutRequestJson() {
-  return JSON.stringify(
-    {
-      text: "Texto dictado",
-      source: "siri",
-      timezone: "America/Montevideo",
-      dryRun: false,
-      defaultCurrency: "UYU",
-      idempotencyKey: "UUID nuevo en cada ejecución",
-    },
-    null,
-    2
-  );
+  return JSON.stringify({ text: "Texto dictado", source: "siri", timezone: "America/Montevideo", dryRun: false, defaultCurrency: "UYU", idempotencyKey: "UUID nuevo en cada ejecucion" }, null, 2);
 }
 
 export function buildIosShortcutPrompt(token: string) {
   const authorization = `Bearer ${token}`;
-  return `Creá un Atajo de iOS llamado “Registrar movimiento” para mi uso personal. Debe funcionar con Siri y registrar frases como “Gasté 850 pesos en combustible con Itaú”, “Compré un perfume por 2890”, “Cobré 38600 pesos de sueldo”, “Transferí 200 dólares de Itaú a Scotia”, “Presté 500 pesos a Juan”, “Juan me devolvió 300” y “Ahorré 200 dólares”.
+  return `Crea un Atajo de iOS llamado "Registrar movimiento" para mi uso personal. Debe funcionar con Siri y registrar unicamente gastos o ingresos. Admite frases como "Gaste 850 pesos en combustible con Itau", "Compre un perfume por 2890" y "Cobre 38600 pesos de sueldo". No intentes crear cuentas, transferencias, prestamos, tarjetas, metas ni ahorros: esas acciones se hacen desde la app.
 
-Configurá exactamente esta lógica, sin cambiar la URL, método, headers ni nombres de campos:
+Configura exactamente esta logica, sin cambiar la URL, metodo, headers ni nombres de campos:
 
-1. Agregá la acción “Dictar texto” y guardá el resultado como Texto dictado.
-2. Agregá la acción “Generar UUID” en cada ejecución y guardalo como IdempotencyKey. No reutilices un UUID de una ejecución anterior: debe ser un UUID nuevo por cada intento del atajo.
-3. Agregá “Obtener contenido de URL” con estas opciones:
+1. Agrega la accion "Dictar texto" en espanol (Uruguay) y guarda el resultado como Texto dictado.
+2. Agrega la accion "Generar UUID" en cada ejecucion y guardalo como IdempotencyKey. No reutilices un UUID de una ejecucion anterior: debe ser un UUID nuevo por cada intento del atajo.
+3. Agrega "Obtener contenido de URL" con estas opciones:
    - URL: ${PARSE_TRANSACTION_ENDPOINT}
-   - Método: POST
+   - Metodo: POST
    - Headers:
      - Authorization: ${authorization}
      - Content-Type: application/json
@@ -40,12 +29,12 @@ Configurá exactamente esta lógica, sin cambiar la URL, método, headers ni nom
        "defaultCurrency": "UYU",
        "idempotencyKey": IdempotencyKey
      }
-   No envíes un campo shortcutName: este endpoint no lo admite.
-4. Convertí la respuesta en diccionario y obtené el campo message.
-5. Si success es verdadero, usá “Hablar texto” con message.
-6. Si requiresConfirmation es verdadero y existe confirmationUrl, preguntá “¿Querés abrir la confirmación?”. Si respondo que sí, abrí confirmationUrl. Igual leé message antes de preguntar.
-7. Si success no es verdadero, obtené error y usá “Hablar texto” con error. Si error no existe, decí “No se pudo registrar el movimiento”.
-8. Si no existe una respuesta válida o falla la conexión, decí “No se pudo conectar con LaPesadilla Finanzas”.
+   No envies un campo shortcutName: este endpoint no lo admite.
+4. Convierte la respuesta en diccionario y obtiene el campo message.
+5. Si success es verdadero, usa "Hablar texto" con message. Los gastos e ingresos claros se guardan automaticamente, sin una confirmacion extra.
+6. Si requiresConfirmation es verdadero y existe confirmationUrl, pregunta si queres abrir la confirmacion. Si respondo que si, abre confirmationUrl. Igual lee message antes de preguntar.
+7. Si success no es verdadero, obtiene error y usa "Hablar texto" con error. Si error no existe, di "No se pudo registrar el movimiento".
+8. Si no existe una respuesta valida o falla la conexion, di "No se pudo conectar con LaPesadilla Finanzas".
 
-La respuesta exitosa contiene success, requiresConfirmation, transaction y message. Cuando requiere confirmación también contiene confirmationId y confirmationUrl. El campo de voz es message. El endpoint de prueba de conexión es ${AUTOMATION_TEST_ENDPOINT}, usa GET o POST con el mismo header Authorization y devuelve success y message.`;
+La respuesta exitosa contiene success, requiresConfirmation, transaction y message. Cuando requiere confirmacion tambien contiene confirmationId y confirmationUrl. El campo de voz es message. El endpoint de prueba de conexion es ${AUTOMATION_TEST_ENDPOINT}, usa GET o POST con el mismo header Authorization y devuelve success y message.`;
 }

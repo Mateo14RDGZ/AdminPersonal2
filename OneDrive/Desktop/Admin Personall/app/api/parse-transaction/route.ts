@@ -115,6 +115,21 @@ export async function POST(request: NextRequest) {
     (interpretation.type === "TRANSFER" && !destinationAccount) ||
     interpretation.confidence < 0.85;
 
+  if (
+    parsedBody.data.source === "siri" &&
+    interpretation.type !== "EXPENSE" &&
+    interpretation.type !== "INCOME"
+  ) {
+    return NextResponse.json(
+      {
+        success: false,
+        requiresConfirmation: false,
+        error: "El Atajo de Siri solo puede registrar gastos o ingresos. Para esa accion, usa el asistente dentro de la app.",
+      },
+      { status: 400 }
+    );
+  }
+
   const payload = {
     ...interpretation,
     accountId: account?.id ?? null,
