@@ -19,7 +19,7 @@ import {
   monthKey,
   SUPPORTED_CURRENCIES,
 } from "@/lib/format";
-import type { FinancialEntry } from "@/lib/database.types";
+import type { Account, FinancialEntry } from "@/lib/database.types";
 
 type EntryKind = "income" | "saving";
 type CurrencyTotal = { income: number; saving: number };
@@ -28,6 +28,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function FinanzasPage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,12 +43,12 @@ export default function FinanzasPage() {
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("financial_entries")
-      .select("*")
-      .order("occurred_at", { ascending: false })
-      .order("created_at", { ascending: false });
-    setEntries(data ?? []);
+    const [entriesResult, accountsResult] = await Promise.all([
+      supabase.from("financial_entries").select("*").order("occurred_at", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("accounts").select("*").eq("is_archived", false),
+    ]);
+    setEntries(entriesResult.data ?? []);
+    setAccounts(accountsResult.data ?? []);
     setLoading(false);
   }, []);
 
@@ -87,6 +88,10 @@ export default function FinanzasPage() {
     income: 0,
     saving: 0,
   };
+  const reservedSavings = useMemo(
+    () => accounts.filter((account) => account.is_savings_account && account.currency === summaryCurrency).reduce((sum, account) => sum + Number(account.current_balance), 0),
+    [accounts, summaryCurrency]
+  );
 
   const openForm = (nextKind: EntryKind) => {
     setKind(nextKind);
@@ -228,7 +233,7 @@ export default function FinanzasPage() {
               Ahorro reservado
             </p>
             <p className="mt-1 truncate text-xl font-semibold tracking-tight tabular-nums">
-              {formatCurrency(totals.saving, summaryCurrency)}
+              {formatCurrency(reservedSavings, summaryCurrency)}
             </p>
           </div>
         </div>
