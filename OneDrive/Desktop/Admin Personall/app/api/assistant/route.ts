@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { assistantTokensUsedThisMonth, logAssistantUsage, monthlyTokenLimit } from "@/lib/assistant-usage";
-import { simpleMovementPlan } from "@/lib/simple-assistant";
+import { simpleAssistantPlan } from "@/lib/simple-assistant";
 
 const planSchema = z.object({
   action: z.enum(["reply", "register_movement", "create_account", "update_account_balance", "delete_account", "add_savings_plan", "create_card", "create_goal", "create_recurring_payment", "set_category_budget"]),
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text || text.length > 1000) return NextResponse.json({ error: "Escribí un mensaje válido." }, { status: 400 });
 
-  const simplePlan = simpleMovementPlan(text);
+  const simplePlan = simpleAssistantPlan(text);
   if (simplePlan) {
     return NextResponse.json({ plan: simplePlan, requiresConfirmation: true, usedAI: false });
   }
@@ -64,7 +64,12 @@ export async function POST(request: NextRequest) {
       console.error("OpenAI assistant request failed", { status: response.status, code: providerCode, message: providerMessage });
       return NextResponse.json({ error: providerMessage ? `La IA no está disponible: ${providerMessage}` : `La IA no está disponible (${providerCode}).` }, { status: 502 });
     }
-    const content = result?.choices?.[0]?.message?.content;
+    const rawContent = result?.choices?.[0]?.message?.content;
+    const content = (Array.isArray(rawContent)
+      ? rawContent.map((part) => typeof part === "object" && part && "text" in part ? String(part.text) : "").join("")
+      : typeof rawContent === "string" ? rawContent : "")
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "");
     let candidate: unknown = null;
     try { candidate = typeof content === "string" ? JSON.parse(content) : null; } catch { return NextResponse.json({ error: "La IA devolvió una respuesta inválida." }, { status: 422 }); }
     const plan = planSchema.safeParse(candidate);
