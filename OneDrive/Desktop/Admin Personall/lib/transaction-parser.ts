@@ -193,7 +193,8 @@ function extractAccountHints(text: string, type: TransactionType) {
       destinationAccountHint: match?.[2]?.trim() ?? null,
     };
   }
-  const match = text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u)
+  const match = text.match(/\b(?:del|de la|desde)\s+([\p{L}\p{N} -]+?)\s+(?:en|para)\s+/u)
+    ?? text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u)
     ?? text.match(/\b(?:with|using)\s+([\p{L}\p{N} -]+)$/u);
   return {
     accountHint: match?.[1]?.trim() ?? null,

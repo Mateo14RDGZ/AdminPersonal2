@@ -103,7 +103,11 @@ export async function POST(request: NextRequest) {
           normalizeText(candidate.name) ===
           normalizeText(interpretation.categoryHint!)
       )
-    : null;
+    : (categories ?? []).find(
+        (candidate) =>
+          interpretation.merchant != null &&
+          normalizeText(candidate.name) === normalizeText(interpretation.merchant)
+      );
 
   const requiresConfirmation =
     !interpretation.amount ||

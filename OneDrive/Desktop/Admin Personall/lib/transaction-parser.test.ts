@@ -32,4 +32,10 @@ describe("LocalTransactionParser", () => {
       expect(result.currency).toBe(currency);
     });
   }
+
+  it("detects the source account and merchant in a natural expense", async () => {
+    const result = await transactionParser.parse({ text: "Gast\u00e9 620 del efectivo en Makelele" });
+    expect(result.accountHint).toBe("efectivo");
+    expect(result.merchant).toBe("Makelele");
+  });
 });
