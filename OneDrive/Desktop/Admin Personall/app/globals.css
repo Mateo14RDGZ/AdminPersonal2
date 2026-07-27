@@ -4,22 +4,22 @@
 
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-  --color-accent: #1d9e75;
-  --color-accent-muted: #178a66;
-  --color-surface: #f5f5f7;
-  --color-surface-elevated: #ffffff;
-  --color-foreground: #1c1c1e;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
+  --color-accent: #16a47b;
+  --color-accent-muted: #0c795b;
+  --color-surface: #f4f7f8;
+  --color-surface-elevated: rgba(255, 255, 255, 0.82);
+  --color-foreground: #14201e;
+  --color-muted: #70807c;
+  --color-border: #dce7e3;
 }
 
 @media (prefers-color-scheme: dark) {
   @theme {
-    --color-surface: #0f0f11;
-    --color-surface-elevated: #1c1c1e;
-    --color-foreground: #f5f5f7;
-    --color-muted: #9ca3af;
-    --color-border: #2c2c2e;
+    --color-surface: #0b1211;
+    --color-surface-elevated: rgba(22, 31, 29, 0.82);
+    --color-foreground: #eff9f5;
+    --color-muted: #9aa9a5;
+    --color-border: #29403a;
   }
 }
 
@@ -38,6 +38,7 @@
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
+    background-image: radial-gradient(circle at 8% -8%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 30rem), radial-gradient(circle at 100% 25%, color-mix(in srgb, #60a5fa 7%, transparent), transparent 26rem);
   }
 
   button,
@@ -81,10 +82,11 @@
   }
 
   .app-card {
-    border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-    border-radius: 22px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+    border-radius: 24px;
     background: var(--color-surface-elevated);
-    box-shadow: 0 14px 34px -29px rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(18px) saturate(135%);
+    box-shadow: 0 18px 45px -34px rgba(5, 31, 24, 0.7), inset 0 1px 0 rgba(255,255,255,.2);
     transform: translateZ(0);
   }
 
@@ -92,7 +94,7 @@
     width: 100%;
     min-height: 50px;
     border: 1px solid var(--color-border);
-    border-radius: 17px;
+    border-radius: 16px;
     background: color-mix(in srgb, var(--color-surface-elevated) 88%, transparent);
     padding: 0.85rem 1rem;
     font-size: 1rem;
@@ -108,7 +110,8 @@
   .finance-hero {
     background:
       radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.2), transparent 35%),
-      linear-gradient(145deg, #0b7456 0%, #15936e 48%, #1dac81 100%);
+      radial-gradient(circle at 92% 0%, rgba(132, 255, 211, .36), transparent 33%),
+      linear-gradient(138deg, #07533f 0%, #0a8060 48%, #1eb787 100%);
     transform: translateZ(0);
   }
 
@@ -183,7 +186,8 @@
   .assistant-card {
     position: relative;
     isolation: isolate;
-    box-shadow: 0 18px 42px -34px rgba(16, 110, 82, 0.65);
+    border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+    box-shadow: 0 24px 52px -38px rgba(12, 126, 90, .75);
   }
 
   .assistant-glow {
@@ -197,7 +201,7 @@
     transform: translateZ(0);
   }
 
-  .assistant-avatar { background: linear-gradient(145deg, #21b487, #11765a); }
+  .assistant-avatar { background: linear-gradient(145deg, #2bd4a1, #0b7054); box-shadow: 0 10px 24px -10px rgba(19, 178, 128, .85); }
   .assistant-confirm { animation: confirm-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
