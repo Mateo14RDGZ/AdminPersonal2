@@ -8,6 +8,7 @@ import { transactionParser, normalizeText } from "@/lib/transaction-parser";
 import { parseTransactionSchema } from "@/lib/validation";
 import { formatCurrency } from "@/lib/format";
 import { databaseTransactionSource } from "@/lib/database-source";
+import { sendPushToUser } from "@/lib/push-server";
 
 export async function POST(request: NextRequest) {
   let json: unknown;
@@ -174,6 +175,25 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const service = createServiceClient();
+  if (parsedBody.data.idempotencyKey) {
+    const { data: existing } = await service
+      .from("transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("idempotency_key", parsedBody.data.idempotencyKey)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        requiresConfirmation: false,
+        transaction: existing,
+        message: "Ese movimiento ya estaba registrado.",
+      });
+    }
+  }
+
   const rpcArgs = {
     p_type: interpretation.type,
     p_amount: interpretation.amount!,
@@ -190,7 +210,6 @@ export async function POST(request: NextRequest) {
     p_confidence: interpretation.confidence,
     p_raw_input: interpretation.rawInput,
   };
-  const service = createServiceClient();
   const { data: transaction, error: createError } = await service.rpc(
     "create_financial_transaction_service",
     { p_user_id: userId, ...rpcArgs }
@@ -208,6 +227,14 @@ export async function POST(request: NextRequest) {
         : interpretation.type === "REFUND"
           ? "Devolución"
           : "Gasto";
+  if (parsedBody.data.source === "siri" && (interpretation.type === "EXPENSE" || interpretation.type === "INCOME")) {
+    const detail = category?.name ?? interpretation.merchant ?? label;
+    await sendPushToUser(userId, {
+      title: "La Pesadilla Finanzas",
+      body: `${label} registrado correctamente. ${formatCurrency(interpretation.amount!, interpretation.currency)} · ${detail}`,
+      url: "/movimientos",
+    });
+  }
   return NextResponse.json({
     success: true,
     requiresConfirmation: false,

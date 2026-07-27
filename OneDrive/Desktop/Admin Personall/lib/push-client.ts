@@ -9,6 +9,15 @@ function urlBase64ToUint8Array(base64String: string) {
   return arr;
 }
 
+export type PushStatus = "active" | "inactive" | "unsupported";
+
+export async function getPushStatus(): Promise<PushStatus> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "unsupported";
+  if (Notification.permission !== "granted") return "inactive";
+  const registration = await navigator.serviceWorker.ready;
+  return (await registration.pushManager.getSubscription()) ? "active" : "inactive";
+}
+
 export async function subscribeToPush(): Promise<{ ok: boolean; message: string }> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     return { ok: false, message: "Push no soportado en este navegador." };
@@ -61,4 +70,13 @@ export async function unsubscribeFromPush(): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint }),
   });
+}
+
+export async function sendPushTest(): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch("/api/push/test", { method: "POST" });
+  const data = await response.json().catch(() => null);
+  return {
+    ok: response.ok,
+    message: typeof data?.message === "string" ? data.message : typeof data?.error === "string" ? data.error : "No se pudo enviar la notificacion de prueba.",
+  };
 }

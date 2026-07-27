@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CategoryIcon, CATEGORY_ICON_OPTIONS } from "@/components/category-icon";
 import { EmptyState } from "@/components/empty-state";
-import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
+import { getPushStatus, sendPushTest, subscribeToPush, unsubscribeFromPush, type PushStatus } from "@/lib/push-client";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, MerchantRule } from "@/lib/database.types";
 import { AccountsSection } from "@/components/accounts-section";
@@ -17,6 +17,7 @@ export default function AjustesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [rules, setRules] = useState<(MerchantRule & { categories?: Category | null })[]>([]);
   const [pushMsg, setPushMsg] = useState("");
+  const [pushStatus, setPushStatus] = useState<PushStatus>("inactive");
   const [editing, setEditing] = useState<Partial<Category> | null>(null);
   const [newRule, setNewRule] = useState({ pattern: "", category_id: "" });
 
@@ -32,6 +33,7 @@ export default function AjustesPage() {
 
   useEffect(() => {
     void reload();
+    void getPushStatus().then(setPushStatus).catch(() => setPushStatus("unsupported"));
   }, [reload]);
 
   const saveCategory = async () => {
@@ -88,6 +90,12 @@ export default function AjustesPage() {
 
   const enablePush = async () => {
     const result = await subscribeToPush();
+    setPushMsg(result.message);
+    if (result.ok) setPushStatus("active");
+  };
+
+  const testPush = async () => {
+    const result = await sendPushTest();
     setPushMsg(result.message);
   };
 
@@ -226,7 +234,17 @@ export default function AjustesPage() {
         </ul>
       </section>
 
-      <section className="space-y-2 rounded-[18px] bg-[var(--color-surface-elevated)] p-4">
+      <section className="app-card space-y-3 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div><h2 className="text-sm font-semibold">Notificaciones</h2><p className="mt-1 text-xs text-[var(--color-muted)]">Confirmacion al registrar desde el Atajo.</p></div>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pushStatus === "active" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-[var(--color-border)] text-[var(--color-muted)]"}`}>{pushStatus === "active" ? "Activadas" : pushStatus === "unsupported" ? "No disponibles" : "Desactivadas"}</span>
+        </div>
+        <button type="button" onClick={() => void enablePush()} disabled={pushStatus === "unsupported" || pushStatus === "active"} className="pressable w-full rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--color-accent)" }}>{pushStatus === "active" ? "Notificaciones activadas" : "Activar notificaciones"}</button>
+        <button type="button" onClick={() => void testPush()} disabled={pushStatus !== "active"} className="pressable w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] py-2.5 text-sm font-semibold disabled:opacity-50">Enviar notificacion de prueba</button>
+        {pushMsg ? <p className="text-xs text-[var(--color-muted)]" aria-live="polite">{pushMsg}</p> : null}
+      </section>
+
+      <section className="hidden space-y-2 rounded-[18px] bg-[var(--color-surface-elevated)] p-4">
         <h2 className="text-sm font-medium">Notificaciones</h2>
         <p className="text-xs text-[var(--color-muted)]">
           Avisos cuando llegue un gasto desde Atajos de iOS.

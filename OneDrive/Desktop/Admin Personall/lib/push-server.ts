@@ -3,6 +3,10 @@ import { createServiceClient } from "./supabase/service";
 
 let configured = false;
 
+export function isPushConfigured() {
+  return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+}
+
 function ensureVapid() {
   if (configured) return;
   const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -22,7 +26,7 @@ export async function sendPushToUser(
   try {
     ensureVapid();
   } catch {
-    return;
+    return { configured: false, sent: 0 };
   }
 
   const supabase = createServiceClient();
@@ -31,7 +35,7 @@ export async function sendPushToUser(
     .select("*")
     .eq("user_id", userId);
 
-  if (!subs?.length) return;
+  if (!subs?.length) return { configured: true, sent: 0 };
 
   const body = JSON.stringify({
     title: payload.title,
@@ -39,7 +43,7 @@ export async function sendPushToUser(
     url: payload.url ?? "/inicio",
   });
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     subs.map(async (sub) => {
       try {
         await webpush.sendNotification(
@@ -60,4 +64,5 @@ export async function sendPushToUser(
       }
     })
   );
+  return { configured: true, sent: results.filter((result) => result.status === "fulfilled").length };
 }
