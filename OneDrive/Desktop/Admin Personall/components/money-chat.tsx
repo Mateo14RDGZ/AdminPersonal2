@@ -16,6 +16,7 @@ export function MoneyChat({ onRegistered }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [conversationActive, setConversationActive] = useState(false);
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", text: "Puedo registrar movimientos y ayudarte con cuentas, tarjetas, metas y pagos." }]);
   const suggestions = ["Gasté 500 en nafta", "Creá una cuenta en dólares", "Quiero ahorrar 200 por mes"];
 
@@ -24,6 +25,7 @@ export function MoneyChat({ onRegistered }: Props) {
     const value = text.trim();
     if (!value || sending) return;
     setMessages((current) => [...current, { role: "user", text: value }]);
+    setConversationActive(true);
     setText("");
     setSending(true);
     try {
@@ -45,6 +47,7 @@ export function MoneyChat({ onRegistered }: Props) {
     if (!plan || sending) return;
     if (plan.action === "reply") {
       setPlan(null);
+      setConversationActive(false);
       return;
     }
     setSending(true);
@@ -62,6 +65,7 @@ export function MoneyChat({ onRegistered }: Props) {
         setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Acción completada." }]);
       }
       setPlan(null);
+      setConversationActive(false);
       onRegistered();
       window.dispatchEvent(new Event("finance-data-changed"));
     } catch (error) {
@@ -70,7 +74,7 @@ export function MoneyChat({ onRegistered }: Props) {
   };
 
   return (
-    <section className="assistant-card app-card overflow-hidden">
+    <section className={`assistant-card app-card overflow-hidden ${conversationActive ? "assistant-card-conversation" : ""}`}>
       <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
       <div className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-4">
         <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-emerald-900/20"><IconSparkles size={21} stroke={2.2} /></span>
@@ -90,7 +94,7 @@ export function MoneyChat({ onRegistered }: Props) {
         <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
         <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
       </form>
-      {plan ? <div className="relative assistant-confirm mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={() => setPlan(null)} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></div> : null}
+      {plan ? <div className="relative assistant-confirm mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={() => { setPlan(null); setConversationActive(false); }} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></div> : null}
     </section>
   );
 }
