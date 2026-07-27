@@ -116,7 +116,7 @@ export default function InicioPage() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
             <IconArrowUpRight size={19} />
           </span>
-          <p className="mt-3 text-xs text-[var(--color-muted)]">Disponible este mes</p>
+          <p className="mt-3 text-xs text-[var(--color-muted)]">Disponible en cuentas</p>
           <p className={`mt-1 truncate text-lg font-semibold tabular-nums ${(budget?.available ?? 0) < 0 ? "text-red-500" : ""}`}>
             {formatCurrency(budget?.available ?? 0, budget?.currency ?? "UYU")}
           </p>

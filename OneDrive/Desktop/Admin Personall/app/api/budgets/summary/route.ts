@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { monthKey, monthRange } from "@/lib/format";
-import { calculateAvailability } from "@/lib/finance";
 
 export async function GET(request: NextRequest) {
   const { user, error } = await requireUser();
@@ -55,7 +54,7 @@ export async function GET(request: NextRequest) {
         .limit(20),
       supabase
         .from("accounts")
-        .select("currency,current_balance")
+        .select("currency,current_balance,is_savings_account")
         .eq("user_id", user.id)
         .eq("is_archived", false),
       supabase
@@ -157,16 +156,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const availableByCurrency = (accountResult.data ?? []).reduce<Record<string, number>>(
+    (totals, account) => {
+      if (account.is_savings_account) return totals;
+      const currency = account.currency || "UYU";
+      totals[currency] = (totals[currency] ?? 0) + Number(account.current_balance);
+      return totals;
+    },
+    {}
+  );
+
+  for (const currency of Object.keys(availableByCurrency)) ensureCurrency(currency);
   const balances = [...totalsByCurrency.values()]
-    .map((totals) => {
-      const availability = calculateAvailability({
-        income: totals.income,
-        spent: totals.spent,
-        reservedSavings: totals.savings,
-        daysRemaining: 1,
-      });
-      return { ...totals, available: availability.available };
-    })
+    .map((totals) => ({ ...totals, available: availableByCurrency[totals.currency] ?? 0 }))
     .sort((first, second) => {
       const priority = ["UYU", "USD"];
       const firstIndex = priority.indexOf(first.currency);
@@ -186,7 +188,7 @@ export async function GET(request: NextRequest) {
     income: 0,
     savings: 0,
     spent: totalSpent,
-    available: -totalSpent,
+    available: availableByCurrency.UYU ?? 0,
   };
 
   const byCategory = (categoryResult.data ?? []).map((category) => {
