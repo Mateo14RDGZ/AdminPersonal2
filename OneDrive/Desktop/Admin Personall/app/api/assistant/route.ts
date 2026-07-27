@@ -52,7 +52,12 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ model: "gpt-5-mini", messages: [{ role: "system", content: system }, { role: "user", content: text }], response_format: { type: "json_object" }, max_completion_tokens: Math.min(500, remaining - estimatedInput) }),
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok) return NextResponse.json({ error: "No pude consultar la IA en este momento." }, { status: 502 });
+    if (!response.ok) {
+      const providerMessage = typeof result?.error?.message === "string" ? result.error.message : null;
+      const providerCode = typeof result?.error?.code === "string" ? result.error.code : `HTTP ${response.status}`;
+      console.error("OpenAI assistant request failed", { status: response.status, code: providerCode, message: providerMessage });
+      return NextResponse.json({ error: providerMessage ? `La IA no está disponible: ${providerMessage}` : `La IA no está disponible (${providerCode}).` }, { status: 502 });
+    }
     const content = result?.choices?.[0]?.message?.content;
     let candidate: unknown = null;
     try { candidate = typeof content === "string" ? JSON.parse(content) : null; } catch { return NextResponse.json({ error: "La IA devolvió una respuesta inválida." }, { status: 422 }); }
