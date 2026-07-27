@@ -21,11 +21,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   const history = Array.isArray(body?.history)
-    ? body.history.slice(-8).flatMap((item) =>
-        item && typeof item === "object" && (item.role === "user" || item.role === "assistant") && typeof item.text === "string"
-          ? [{ role: item.role, content: item.text.slice(0, 1000) }]
-          : []
-      )
+    ? body.history.slice(-8).flatMap((item: unknown) => {
+        const message = item && typeof item === "object" ? item as Record<string, unknown> : null;
+        return message && (message.role === "user" || message.role === "assistant") && typeof message.text === "string"
+          ? [{ role: message.role, content: message.text.slice(0, 1000) }]
+          : [];
+      })
     : [];
   if (!text || text.length > 1000) return NextResponse.json({ error: "Escribi un mensaje valido." }, { status: 400 });
   const localPlan = simpleAssistantPlan(text);
