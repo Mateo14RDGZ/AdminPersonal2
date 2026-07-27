@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -22,15 +22,30 @@ const tabs = [
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const swipeStart = useRef<number | null>(null);
 
   useEffect(() => {
     for (const tab of tabs) router.prefetch(tab.href);
   }, [router]);
 
+  const changeSectionBySwipe = (endX: number) => {
+    if (swipeStart.current == null) return;
+    const distance = endX - swipeStart.current;
+    swipeStart.current = null;
+    if (Math.abs(distance) < 46) return;
+    const currentIndex = Math.max(0, tabs.findIndex((tab) => tab.href === pathname));
+    const nextIndex = distance < 0
+      ? Math.min(tabs.length - 1, currentIndex + 1)
+      : Math.max(0, currentIndex - 1);
+    if (nextIndex !== currentIndex) router.push(tabs[nextIndex].href);
+  };
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 px-3 safe-bottom"
       aria-label="Principal"
+      onTouchStart={(event) => { swipeStart.current = event.touches[0]?.clientX ?? null; }}
+      onTouchEnd={(event) => changeSectionBySwipe(event.changedTouches[0]?.clientX ?? 0)}
     >
       <div className="liquid-nav mx-auto grid w-full max-w-[450px] grid-cols-5 items-end rounded-[24px] border border-[var(--color-border)] px-1 pb-1.5 pt-1.5">
         {tabs.map((tab) => {
@@ -63,7 +78,7 @@ export function BottomNav() {
               }`}
             >
               {active ? (
-                <span className="nav-active-pill absolute inset-x-2 inset-y-0 rounded-2xl bg-[var(--color-accent)]/8" />
+                <span className="nav-active-pill absolute inset-x-1.5 inset-y-1 rounded-[18px] border border-[var(--color-accent)]/15 bg-[var(--color-accent)]/10" />
               ) : null}
               <Icon
                 className="relative"
