@@ -250,7 +250,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     opacity: 0;
     overflow: hidden;
     transform: translateY(-6px);
-    transition: max-height 380ms cubic-bezier(.22,1,.36,1), opacity 200ms ease, transform 380ms cubic-bezier(.22,1,.36,1);
+    transition: max-height 560ms cubic-bezier(.16,1,.3,1), opacity 340ms ease-out, transform 560ms cubic-bezier(.16,1,.3,1);
   }
   .assistant-card > .relative:nth-of-type(2) { min-height: 58px; }
   .assistant-card-conversation > .relative:nth-of-type(3) {
