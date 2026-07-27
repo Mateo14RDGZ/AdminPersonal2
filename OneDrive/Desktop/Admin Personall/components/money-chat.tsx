@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconSparkles, IconX } from "@tabler/icons-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconSparkles, IconX } from "@tabler/icons-react";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Plan = {
@@ -9,20 +9,27 @@ type Plan = {
   message: string;
   data: { raw_text: string | null; account_id: string | null; category_id: string | null; name: string | null; institution: string | null; account_type: string | null; currency: string | null; amount: number | null; target_amount: number | null; date: string | null };
 };
-
 type Props = { onRegistered: () => void };
+type SpeechRecognitionResultLike = { isFinal: boolean; 0: { transcript: string } };
+type SpeechRecognitionEventLike = { results: ArrayLike<SpeechRecognitionResultLike> };
+type SpeechRecognitionLike = { lang: string; continuous: boolean; interimResults: boolean; start: () => void; stop: () => void; onresult: ((event: SpeechRecognitionEventLike) => void) | null; onend: (() => void) | null; onerror: ((event: { error: string }) => void) | null };
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 export function MoneyChat({ onRegistered }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [conversationActive, setConversationActive] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", text: "Puedo registrar movimientos y ayudarte con cuentas, tarjetas, metas y pagos." }]);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const suggestions = ["Gasté 500 en nafta", "Creá una cuenta en dólares", "Quiero ahorrar 200 por mes"];
 
-  const send = async (event: FormEvent) => {
-    event.preventDefault();
-    const value = text.trim();
+  useEffect(() => () => recognitionRef.current?.stop(), []);
+
+  const sendText = async (rawText: string) => {
+    const value = rawText.trim();
     if (!value || sending) return;
     setMessages((current) => [...current, { role: "user", text: value }]);
     setConversationActive(true);
@@ -43,13 +50,58 @@ export function MoneyChat({ onRegistered }: Props) {
     } finally { setSending(false); }
   };
 
-  const confirmPlan = async () => {
-    if (!plan || sending) return;
-    if (plan.action === "reply") {
-      setPlan(null);
-      setConversationActive(false);
+  const send = (event: FormEvent) => {
+    event.preventDefault();
+    void sendText(text);
+  };
+
+  const toggleDictation = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
       return;
     }
+    const recognizerWindow = window as typeof window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
+    const SpeechRecognition = recognizerWindow.SpeechRecognition ?? recognizerWindow.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceStatus("El dictado no está disponible en este navegador. Abrí la app desde Safari en tu iPhone.");
+      setConversationActive(true);
+      return;
+    }
+    setVoiceStatus("");
+    const recognition = new SpeechRecognition();
+    recognition.lang = "es-UY";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      let transcript = "";
+      let finalTranscript = "";
+      for (let index = 0; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        transcript += result[0].transcript;
+        if (result.isFinal) finalTranscript += result[0].transcript;
+      }
+      setText(transcript.trim());
+      if (finalTranscript.trim()) {
+        setListening(false);
+        void sendText(finalTranscript);
+      }
+    };
+    recognition.onerror = (event) => {
+      setListening(false);
+      if (event.error !== "aborted" && event.error !== "no-speech") {
+        setVoiceStatus("No pude escuchar el dictado. Revisá el permiso del micrófono e intentá otra vez.");
+        setConversationActive(true);
+      }
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    setListening(true);
+    setConversationActive(true);
+    recognition.start();
+  };
+
+  const confirmPlan = async () => {
+    if (!plan || sending) return;
     setSending(true);
     try {
       if (plan.action === "register_movement") {
@@ -78,22 +130,17 @@ export function MoneyChat({ onRegistered }: Props) {
       <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
       <div className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-4">
         <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-emerald-900/20"><IconSparkles size={21} stroke={2.2} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div>
-          <p className="mt-0.5 text-xs text-[var(--color-muted)]">Escribí como hablás. Te muestra el cambio antes de hacerlo.</p>
-        </div>
+        <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Escribí o hablá como hablás. Siempre te muestra el cambio antes de hacerlo.</p></div>
         <IconMessageCircle className="text-[var(--color-muted)]" size={20} />
       </div>
-      <div className="relative flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Ejemplos rápidos">
-        {suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => setText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}
-      </div>
-      <div className="relative max-h-52 space-y-2 overflow-y-auto px-4 pb-3" aria-live="polite">
-        {messages.slice(-4).map((message, index) => <p key={`${message.role}-${index}`} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-text)] dark:bg-white/[0.08]"}`}>{message.text}</p>)}
-      </div>
+      <div className="relative flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Ejemplos rápidos">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => setText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</div>
+      <div className="relative max-h-52 space-y-2 overflow-y-auto px-4 pb-3" aria-live="polite">{messages.slice(-4).map((message, index) => <p key={`${message.role}-${index}`} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-text)] dark:bg-white/[0.08]"}`}>{message.text}</p>)}</div>
       <form onSubmit={send} className="relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015]">
         <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
+        <button type="button" onClick={toggleDictation} disabled={sending} className={`pressable tap-target flex shrink-0 items-center justify-center rounded-2xl border ${listening ? "animate-pulse border-[var(--color-accent)] bg-[var(--color-accent)] text-white" : "border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-muted)]"}`} aria-label={listening ? "Detener dictado" : "Dictar mensaje"} aria-pressed={listening}><IconMicrophone size={20} /></button>
         <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
       </form>
+      {listening || voiceStatus ? <p className={`relative px-4 pb-3 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
       {plan ? <div className="relative assistant-confirm mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={() => { setPlan(null); setConversationActive(false); }} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></div> : null}
     </section>
   );
