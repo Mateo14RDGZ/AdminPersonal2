@@ -77,6 +77,28 @@ html[data-theme="light"] {
   --color-border: #e7e1da;
 }
 
+html[data-theme="dark"] .app-card,
+html[data-theme="dark"] .sheet-panel {
+  background: #22211f;
+  border-color: #393631;
+  color: #f6f3ee;
+}
+
+html[data-theme="dark"] .app-input,
+html[data-theme="dark"] .currency-tabs {
+  background: #191918;
+  border-color: #393631;
+  color: #f6f3ee;
+}
+
+html[data-theme="dark"] .currency-tab-active {
+  background: #302e2a;
+  color: #f6f3ee;
+}
+
+html[data-theme="light"] .app-card,
+html[data-theme="light"] .sheet-panel { background: #ffffff; }
+
 @layer utilities {
   .ios-transition {
     transition-duration: 240ms;
