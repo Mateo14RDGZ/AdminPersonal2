@@ -231,6 +231,7 @@ export async function GET(request: NextRequest) {
         (accountResult.data ?? []).reduce<
           Record<string, { currency: string; balance: number }>
         >((accumulator, account) => {
+          if (account.is_savings_account) return accumulator;
           const currency = account.currency || "UYU";
           accumulator[currency] ??= { currency, balance: 0 };
           accumulator[currency].balance += Number(account.current_balance);

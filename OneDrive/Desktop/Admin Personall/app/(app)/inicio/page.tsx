@@ -69,7 +69,8 @@ export default function InicioPage() {
   if (loading && !summary) return <DashboardSkeleton />;
 
   const accounts = summary?.accountBalances ?? [];
-  const primaryAccount = accounts.find((account) => account.currency === "UYU") ?? accounts[0];
+  const primaryAccount = accounts.find((account) => account.currency === "UYU") ?? null;
+  const secondaryAccounts = accounts.filter((account) => account.currency !== "UYU");
   const savingsAccounts = summary?.savingsAccountBalances ?? [];
   const primarySavings = savingsAccounts.find((account) => account.currency === "UYU") ?? savingsAccounts[0];
   const budget = summary?.balances.find((item) => item.currency === "UYU") ?? summary?.balances[0];
@@ -94,13 +95,13 @@ export default function InicioPage() {
       <section className="finance-hero page-enter-delay overflow-hidden rounded-[26px] p-5 text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,0.62)]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-white/70">Saldo en tus cuentas</p>
+            <p className="text-sm text-white/70">Saldo disponible en cuentas</p>
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               {primaryAccount
                 ? formatCurrency(primaryAccount.balance, primaryAccount.currency)
                 : formatCurrency(0, "UYU")}
             </p>
-            <p className="mt-2 text-xs text-white/65">Incluye bancos, efectivo y billeteras.</p>
+            <p className="mt-2 text-xs text-white/65">UYU · Bancos, efectivo y billeteras.</p>
           </div>
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
             <IconWallet size={23} stroke={1.8} />
@@ -112,6 +113,15 @@ export default function InicioPage() {
         >
           Ver y administrar cuentas
         </Link>
+        {secondaryAccounts.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+            {secondaryAccounts.map((account) => (
+              <span key={account.currency} className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold tabular-nums">
+                {account.currency} · {formatCurrency(account.balance, account.currency)}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="grid grid-cols-2 gap-3">
