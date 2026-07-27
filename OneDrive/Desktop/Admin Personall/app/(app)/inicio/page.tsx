@@ -19,6 +19,7 @@ type Summary = {
   availableBudget: number;
   balances: { currency: string; income: number; savings: number; spent: number; available: number }[];
   accountBalances: { currency: string; balance: number }[];
+  savingsAccountBalances: { currency: string; balance: number }[];
   pendingCount: number;
   pendingConfirmations: { id: string; raw_input: string; created_at: string }[];
   today: TransactionWithCategory[];
@@ -69,6 +70,8 @@ export default function InicioPage() {
 
   const accounts = summary?.accountBalances ?? [];
   const primaryAccount = accounts.find((account) => account.currency === "UYU") ?? accounts[0];
+  const savingsAccounts = summary?.savingsAccountBalances ?? [];
+  const primarySavings = savingsAccounts.find((account) => account.currency === "UYU") ?? savingsAccounts[0];
   const budget = summary?.balances.find((item) => item.currency === "UYU") ?? summary?.balances[0];
   const today = summary?.today ?? [];
 
@@ -127,7 +130,7 @@ export default function InicioPage() {
           </span>
           <p className="mt-3 text-xs text-[var(--color-muted)]">Ahorro reservado</p>
           <p className="mt-1 truncate text-lg font-semibold tabular-nums">
-            {formatCurrency(budget?.savings ?? 0, budget?.currency ?? "UYU")}
+            {formatCurrency(primarySavings?.balance ?? 0, primarySavings?.currency ?? "UYU")}
           </p>
         </Link>
       </section>

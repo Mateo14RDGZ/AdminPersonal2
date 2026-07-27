@@ -165,6 +165,15 @@ export async function GET(request: NextRequest) {
     },
     {}
   );
+  const savingsByCurrency = (accountResult.data ?? []).reduce<Record<string, number>>(
+    (totals, account) => {
+      if (!account.is_savings_account) return totals;
+      const currency = account.currency || "UYU";
+      totals[currency] = (totals[currency] ?? 0) + Number(account.current_balance);
+      return totals;
+    },
+    {}
+  );
 
   for (const currency of Object.keys(availableByCurrency)) ensureCurrency(currency);
   const balances = [...totalsByCurrency.values()]
@@ -217,6 +226,7 @@ export async function GET(request: NextRequest) {
       totalSpent,
       availableBudget: primaryTotals.available,
       balances,
+      savingsAccountBalances: Object.entries(savingsByCurrency).map(([currency, balance]) => ({ currency, balance })),
       accountBalances: Object.values(
         (accountResult.data ?? []).reduce<
           Record<string, { currency: string; balance: number }>
