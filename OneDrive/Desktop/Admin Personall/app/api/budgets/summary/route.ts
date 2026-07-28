@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { monthKey, monthRange } from "@/lib/format";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 export async function GET(request: NextRequest) {
   const { user, error } = await requireUser();
@@ -19,6 +21,14 @@ export async function GET(request: NextRequest) {
     .slice(0, 10);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+
+  // The home summary must never wait for a screen reload to reflect a
+  // transaction saved moments ago.
+  try {
+    await reconcileUserAccountBalances(createServiceClient(), user.id);
+  } catch (reconciliationError) {
+    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "No se pudieron actualizar los saldos." }, { status: 500 });
+  }
 
   const supabase = await createClient();
   const [

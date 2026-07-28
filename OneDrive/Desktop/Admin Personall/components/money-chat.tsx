@@ -237,6 +237,8 @@ export function MoneyChat({ onRegistered }: Props) {
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo completar la acción.");
       }
+      const refreshedAccounts = await loadAccounts({ refresh: true }).catch(() => [] as Account[]);
+      if (refreshedAccounts.length) setAccounts(refreshedAccounts);
       onRegistered();
       window.dispatchEvent(new Event("finance-data-changed"));
       finishConversation("success");

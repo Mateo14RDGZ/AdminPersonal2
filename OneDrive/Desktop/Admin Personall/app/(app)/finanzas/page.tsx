@@ -55,6 +55,9 @@ export default function FinanzasPage() {
 
   useEffect(() => {
     void load();
+    const refresh = () => void load();
+    window.addEventListener("finance-data-changed", refresh);
+    return () => window.removeEventListener("finance-data-changed", refresh);
   }, [load]);
 
   const totalsByCurrency = useMemo(() => {
