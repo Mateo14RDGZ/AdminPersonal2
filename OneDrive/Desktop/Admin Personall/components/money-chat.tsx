@@ -127,12 +127,12 @@ export function MoneyChat({ onRegistered }: Props) {
   };
 
   return (
-    <section className={`assistant-card app-card overflow-hidden ${conversationActive ? "assistant-card-conversation" : ""}`}>
+    <section className={`assistant-card app-card overflow-hidden ${conversationActive ? "assistant-card-conversation assistant-fullscreen" : ""}`}>
       <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
       <div className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-4">
         <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-emerald-900/20"><IconSparkles size={21} stroke={2.2} /></span>
         <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Escribí o hablá como hablás. Siempre te muestra el cambio antes de hacerlo.</p></div>
-        <IconMessageCircle className="text-[var(--color-muted)]" size={20} />
+        {conversationActive ? <button type="button" onClick={resetConversation} className="tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={20} /></button> : <IconMessageCircle className="text-[var(--color-muted)]" size={20} />}
       </div>
       <div className="relative flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Opciones de configuración">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</div>
       <div className="relative max-h-52 space-y-2 overflow-y-auto px-4 pb-3" aria-live="polite">{messages.slice(-4).map((message, index) => <p key={`${message.role}-${index}`} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-text)] dark:bg-white/[0.08]"}`}>{message.text}</p>)}</div>
