@@ -7,6 +7,7 @@ import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophon
 import { loadAccounts } from "@/lib/accounts-client";
 import type { Account } from "@/lib/database.types";
 import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
+import { AnimatedAssistantMascot, type MascotState } from "@/components/animated-assistant-mascot";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -48,8 +49,11 @@ export function MoneyChat({ onRegistered }: Props) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [mounted, setMounted] = useState(false);
   const [reaction, setReaction] = useState<PesadillaMood | null>(null);
+  const [hasAssistantError, setHasAssistantError] = useState(false);
+  const [sendBurst, setSendBurst] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const sendBurstTimerRef = useRef<number | null>(null);
   const suggestions = ["Configurar mis cuentas", "Crear una categoría", "Registrar mi sueldo"];
 
   useEffect(() => {
@@ -58,8 +62,15 @@ export function MoneyChat({ onRegistered }: Props) {
     return () => {
       recognitionRef.current?.stop();
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      if (sendBurstTimerRef.current) window.clearTimeout(sendBurstTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasAssistantError) return;
+    const timeout = window.setTimeout(() => setHasAssistantError(false), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [hasAssistantError]);
 
   const closeConversation = (resetReaction = true) => {
     setConversationActive(false);
@@ -67,6 +78,8 @@ export function MoneyChat({ onRegistered }: Props) {
     setText("");
     setDraft(null);
     if (resetReaction) setReaction(null);
+    setHasAssistantError(false);
+    setSendBurst(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => setMessages(initialMessages), 700);
   };
@@ -85,6 +98,10 @@ export function MoneyChat({ onRegistered }: Props) {
     setConversationActive(true);
     setText("");
     setReaction(null);
+    setHasAssistantError(false);
+    setSendBurst(true);
+    if (sendBurstTimerRef.current) window.clearTimeout(sendBurstTimerRef.current);
+    sendBurstTimerRef.current = window.setTimeout(() => setSendBurst(false), 240);
     setSending(true);
     try {
       const response = await fetch("/api/assistant", {
@@ -94,6 +111,7 @@ export function MoneyChat({ onRegistered }: Props) {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
+        setHasAssistantError(true);
         setMessages((current) => [...current, { role: "assistant", text: typeof data?.error === "string" ? data.error : "No pude entender ese mensaje." }]);
         return;
       }
@@ -118,6 +136,7 @@ export function MoneyChat({ onRegistered }: Props) {
         setDraft(resolvedDraft);
       }
     } catch {
+      setHasAssistantError(true);
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
     } finally {
       setSending(false);
@@ -196,6 +215,7 @@ export function MoneyChat({ onRegistered }: Props) {
       finishConversation("success");
     } catch (error) {
       setReaction(null);
+      setHasAssistantError(true);
       setMessages((current) => [...current, { role: "assistant", text: error instanceof Error ? error.message : "No se pudo completar la acción." }]);
     } finally {
       setSending(false);
@@ -228,7 +248,7 @@ export function MoneyChat({ onRegistered }: Props) {
     finishConversation("cancelled");
   };
 
-  const assistantMood: PesadillaMood = reaction ?? (listening ? "listening" : sending ? "thinking" : plan ? "ready" : "idle");
+  const mascotState: MascotState = reaction === "success" ? "success" : reaction === "cancelled" ? "cancelled" : hasAssistantError ? "error" : listening ? "listening" : sendBurst ? "surprised" : sending ? "thinking" : plan ? "happy" : "idle";
 
   const composer = (expanded: boolean) => (
     <form onSubmit={send} className={`relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
@@ -265,10 +285,12 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"
               >
-                <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-                  <PesadillaAvatar active mood={assistantMood} />
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
-                  <button type="button" onClick={() => closeConversation()} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
+                <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative border-b border-[var(--color-border)] pt-[max(.45rem,env(safe-area-inset-top))]">
+                  <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} />
+                  <div className="flex items-center gap-3 px-4 pb-4">
+                    <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
+                    <button type="button" onClick={() => closeConversation()} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
+                  </div>
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>

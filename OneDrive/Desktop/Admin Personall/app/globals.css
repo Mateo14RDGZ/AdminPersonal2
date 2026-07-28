@@ -234,6 +234,46 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   .pesadilla-avatar-ready { box-shadow: 0 11px 25px -12px rgba(53, 104, 79, .7), inset 0 1px 1px rgba(255,255,255,.52); }
   .pesadilla-avatar-success { background: linear-gradient(145deg, #aee5c3, #4eaa75); color: #285f46; animation: pesadilla-success .58s cubic-bezier(.2, .9, .3, 1); }
   .pesadilla-avatar-cancelled { background: linear-gradient(145deg, #ded6ec, #9e91b5); color: #655779; animation: pesadilla-cancel .46s ease-out; }
+  .assistant-mascot-stage {
+    position: relative;
+    height: 98px;
+    overflow: hidden;
+    isolation: isolate;
+    touch-action: pan-y;
+  }
+  .assistant-mascot-stage::before {
+    position: absolute;
+    inset: 14px 26% 4px;
+    z-index: -1;
+    border-radius: 9999px;
+    content: "";
+    background: radial-gradient(ellipse, color-mix(in srgb, #a98ae5 18%, transparent), transparent 68%);
+    filter: blur(5px);
+  }
+  .assistant-mascot-motion {
+    position: absolute;
+    top: 10px;
+    left: calc(50% - 38px);
+    will-change: transform;
+  }
+  .assistant-mascot-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .assistant-mascot-particles i {
+    position: absolute;
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: #e5a855;
+    box-shadow: 0 0 10px rgba(229,168,85,.56);
+  }
+  .assistant-mascot-particles i:nth-child(1) { top: 21px; left: calc(50% - 54px); }
+  .assistant-mascot-particles i:nth-child(2) { top: 12px; left: calc(50% + 50px); width: 3px; height: 3px; }
+  .assistant-mascot-particles i:nth-child(3) { top: 67px; left: calc(50% + 44px); width: 4px; height: 4px; }
   .liquid-nav {
     position: relative;
     overflow: hidden;
@@ -395,6 +435,8 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .assistant-mascot-particles { display: none; }
+  .assistant-mascot-stage::before { opacity: .45; }
   *,
   *::before,
   *::after {
@@ -403,6 +445,11 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+@media (max-width: 640px) {
+  .assistant-mascot-stage { height: 86px; }
+  .assistant-mascot-motion { top: 5px; }
 }
 
 @media (max-width: 374px) {

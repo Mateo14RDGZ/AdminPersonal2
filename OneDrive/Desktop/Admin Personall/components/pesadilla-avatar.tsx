@@ -4,10 +4,23 @@ type PesadillaAvatarProps = {
   size?: number;
   active?: boolean;
   mood?: PesadillaMood;
+  lookX?: number;
+  lookY?: number;
+  blink?: boolean;
 };
 
+function GhostEyes({ blink, lookX, lookY }: { blink: boolean; lookX: number; lookY: number }) {
+  if (blink) return <path d="M22.7 33h6.6M34.7 33h6.6" stroke="#433057" strokeWidth="2.4" strokeLinecap="round" />;
+  return <g transform={`translate(${lookX} ${lookY})`}>
+    <ellipse cx="26" cy="32.5" rx="3.8" ry="4.6" fill="#FFF" />
+    <ellipse cx="38" cy="32.5" rx="3.8" ry="4.6" fill="#FFF" />
+    <circle cx="26" cy="32.8" r="1.85" fill="#433057" />
+    <circle cx="38" cy="32.8" r="1.85" fill="#433057" />
+  </g>;
+}
+
 /** Lightweight, expressive ghost mascot for Pesadilla. */
-export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: PesadillaAvatarProps) {
+export function PesadillaAvatar({ size = 42, active = false, mood = "idle", lookX = 0, lookY = 0, blink = false }: PesadillaAvatarProps) {
   const face = "#433057";
 
   return (
@@ -20,11 +33,11 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: Pe
 
         {mood === "thinking" ? <>
           <path d="M21.5 28.5c2.1-2.5 5.1-3.5 8-2.7M35.3 25.8c2.9-.8 5.9.2 8 2.7" stroke={face} strokeWidth="2.5" strokeLinecap="round" />
-          <circle cx="26" cy="33" r="2.6" fill={face} /><circle cx="38" cy="33" r="2.6" fill={face} />
+          <GhostEyes blink={blink} lookX={lookX} lookY={lookY} />
           <path d="M28.4 41.5c2.3-1.2 4.9-1.2 7.2 0" stroke={face} strokeWidth="2.5" strokeLinecap="round" />
           <circle cx="52" cy="16" r="2.5" fill="#FFD38D" /><circle cx="57" cy="10.5" r="1.65" fill="#FFD38D" /><circle cx="57" cy="22" r="1.45" fill="#FFD38D" />
         </> : mood === "listening" ? <>
-          <ellipse cx="26" cy="32.5" rx="2.5" ry="3.2" fill={face} /><ellipse cx="38" cy="32.5" rx="2.5" ry="3.2" fill={face} />
+          <GhostEyes blink={blink} lookX={lookX} lookY={lookY} />
           <path d="M27.5 40.5c2.8 2.4 6.2 2.4 9 0" stroke={face} strokeWidth="2.6" strokeLinecap="round" />
           <path d="M51 31c3-2.8 3-6.3 0-9M55.5 34c5.1-4.8 5.1-10.5 0-15.2" stroke="#E5A855" strokeWidth="2.3" strokeLinecap="round" />
         </> : mood === "success" ? <>
@@ -33,11 +46,11 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: Pe
           <path d="M49 25.5l3 3 6-7" stroke="#4B9A68" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </> : mood === "cancelled" ? <>
           <path d="M21.5 29.5c2-1.6 4.2-2.1 6.3-1.5M36.2 28c2.1-.6 4.3-.1 6.3 1.5" stroke={face} strokeWidth="2.5" strokeLinecap="round" />
-          <circle cx="26" cy="33" r="2.5" fill={face} /><circle cx="38" cy="33" r="2.5" fill={face} />
+          <GhostEyes blink={blink} lookX={lookX} lookY={lookY} />
           <path d="M27.5 42.2c2.8-1.8 6.2-1.8 9 0" stroke={face} strokeWidth="2.5" strokeLinecap="round" />
           <path d="M50 21.5l7 7M57 21.5l-7 7" stroke="#B27586" strokeWidth="2.5" strokeLinecap="round" />
         </> : <>
-          <ellipse cx="26" cy="32.5" rx="2.6" ry="3.1" fill={face} /><ellipse cx="38" cy="32.5" rx="2.6" ry="3.1" fill={face} />
+          <GhostEyes blink={blink} lookX={lookX} lookY={lookY} />
           <path d="M26.5 40.5c3.4 3.1 7.6 3.1 11 0" stroke={face} strokeWidth="2.7" strokeLinecap="round" />
           {mood === "ready" ? <path d="M49 26.5l3 3 6-7" stroke="#4B9A68" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /> : <path d="M52 21v8M56 25h-8" stroke="#E5A855" strokeWidth="2.4" strokeLinecap="round" />}
         </>}
