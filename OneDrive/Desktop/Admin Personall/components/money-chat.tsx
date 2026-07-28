@@ -310,7 +310,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 animate={{ opacity: 1, clipPath: "circle(150% at 50% 93%)", scale: 1 }}
                 exit={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
                 transition={{ duration: 1.08, ease: panelEase }}
-                style={{ transformOrigin: "center bottom" }}
+                style={{ backgroundColor: "#ffffff", color: "#18131f", colorScheme: "light", transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"

@@ -31,8 +31,15 @@ registerRoute(
   })
 );
 
+// The assistant mascot is a visual identity asset. Always use the current
+// deployment while online so an installed PWA cannot keep an older character.
 registerRoute(
-  ({ request }) => request.destination === "font" || request.destination === "image",
+  ({ url }) => url.pathname.startsWith("/mascots/"),
+  new NetworkOnly()
+);
+
+registerRoute(
+  ({ request, url }) => (request.destination === "font" || request.destination === "image") && !url.pathname.startsWith("/mascots/"),
   new CacheFirst({
     cacheName: "static-assets",
     plugins: [

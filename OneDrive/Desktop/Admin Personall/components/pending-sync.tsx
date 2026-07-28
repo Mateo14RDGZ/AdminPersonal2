@@ -16,7 +16,20 @@ export function PendingSync() {
     };
     sync();
     window.addEventListener("online", sync);
-    return () => window.removeEventListener("online", sync);
+    const refreshForNewServiceWorker = () => {
+      const refreshKey = "lap-pwa-controller-version";
+      if (window.sessionStorage.getItem(refreshKey) === window.location.href) return;
+      window.sessionStorage.setItem(refreshKey, window.location.href);
+      window.location.reload();
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("controllerchange", refreshForNewServiceWorker);
+      void navigator.serviceWorker.getRegistration().then((registration) => registration?.update()).catch(() => undefined);
+    }
+    return () => {
+      window.removeEventListener("online", sync);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("controllerchange", refreshForNewServiceWorker);
+    };
   }, []);
 
   return null;

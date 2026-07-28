@@ -172,6 +172,12 @@ export function AnimatedAssistantMascot({
       setBehavior("resting");
       return clearTimers;
     }
+    if (state === "surprised") {
+      setEmotion("surprised");
+      moveTo("upperRight", "wandering");
+      schedule(() => moveTo("upperLeft", "wandering"), 520);
+      return clearTimers;
+    }
     if (chatState === "userTyping" || chatState === "listening") {
       setEmotion("curious");
       moveTo("nearInput", "approaching");
@@ -218,7 +224,7 @@ export function AnimatedAssistantMascot({
     };
     schedule(sleep, 33000);
     return clearTimers;
-  }, [active, chatState, clearTimers, messageCount, moveTo, schedule, scrollTick]);
+  }, [active, chatState, clearTimers, messageCount, moveTo, schedule, scrollTick, state]);
 
   useEffect(() => {
     if (!active || chatState !== "idle") { setBlink(false); return; }

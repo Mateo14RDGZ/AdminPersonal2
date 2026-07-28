@@ -256,7 +256,9 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     --color-border: #ebe7ee;
     color-scheme: light;
     background: #ffffff !important;
+    background-image: none !important;
   }
+  .assistant-conversation .app-input { background: #ffffff !important; color: #18131f !important; border-color: #ebe7ee !important; }
   .assistant-conversation .dark\:bg-white\/\[0\.015\],
   .assistant-conversation .dark\:bg-white\/\[0\.08\] { background-color: rgba(24, 19, 31, .045) !important; }
   .assistant-mascot-stage::before {
