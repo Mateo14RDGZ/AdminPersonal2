@@ -6,7 +6,7 @@ import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconX } from "@tabler/icons-react";
 import { loadAccounts } from "@/lib/accounts-client";
 import type { Account } from "@/lib/database.types";
-import { PesadillaAvatar } from "@/components/pesadilla-avatar";
+import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -47,6 +47,7 @@ export function MoneyChat({ onRegistered }: Props) {
   const [draft, setDraft] = useState<ConversationDraft | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [reaction, setReaction] = useState<PesadillaMood | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const suggestions = ["Configurar mis cuentas", "Crear una categoría", "Registrar mi sueldo"];
@@ -60,13 +61,20 @@ export function MoneyChat({ onRegistered }: Props) {
     };
   }, []);
 
-  const closeConversation = () => {
+  const closeConversation = (resetReaction = true) => {
     setConversationActive(false);
     setPlan(null);
     setText("");
     setDraft(null);
+    if (resetReaction) setReaction(null);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => setMessages(initialMessages), 700);
+  };
+
+  const finishConversation = (mood: Extract<PesadillaMood, "success" | "cancelled">) => {
+    setReaction(mood);
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => closeConversation(false), 620);
   };
 
   const sendText = async (rawText: string) => {
@@ -76,6 +84,7 @@ export function MoneyChat({ onRegistered }: Props) {
     setMessages((current) => [...current, { role: "user", text: value }]);
     setConversationActive(true);
     setText("");
+    setReaction(null);
     setSending(true);
     try {
       const response = await fetch("/api/assistant", {
@@ -184,8 +193,9 @@ export function MoneyChat({ onRegistered }: Props) {
       }
       onRegistered();
       window.dispatchEvent(new Event("finance-data-changed"));
-      closeConversation();
+      finishConversation("success");
     } catch (error) {
+      setReaction(null);
       setMessages((current) => [...current, { role: "assistant", text: error instanceof Error ? error.message : "No se pudo completar la acción." }]);
     } finally {
       setSending(false);
@@ -209,6 +219,16 @@ export function MoneyChat({ onRegistered }: Props) {
     setPlan(readyPlan);
     setDraft({ action: "register_movement", data: readyPlan.data });
   };
+
+  const cancelPlan = () => {
+    if (sending) return;
+    setPlan(null);
+    setDraft(null);
+    setMessages((current) => [...current, { role: "assistant", text: "Listo, cancelé esa operación." }]);
+    finishConversation("cancelled");
+  };
+
+  const assistantMood: PesadillaMood = reaction ?? (listening ? "listening" : sending ? "thinking" : plan ? "ready" : "idle");
 
   const composer = (expanded: boolean) => (
     <form onSubmit={send} className={`relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
@@ -246,15 +266,15 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-label="Pesadilla, asistente financiero"
               >
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-                  <PesadillaAvatar active />
+                  <PesadillaAvatar active mood={assistantMood} />
                   <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
-                  <button type="button" onClick={closeConversation} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
+                  <button type="button" onClick={() => closeConversation()} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
                 {movementNeedsAccount ? <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.44, ease: panelEase }} className="mx-3 mb-3 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/7 p-3"><p className="px-1 text-sm font-semibold">Elegí la cuenta</p><p className="mt-0.5 px-1 text-xs text-[var(--color-muted)]">El movimiento se guardará únicamente en la cuenta que selecciones.</p><div className="mt-3 flex flex-wrap gap-2">{accounts.map((account) => <button key={account.id} type="button" onClick={() => selectMovementAccount(account)} className="pressable min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm font-medium">{account.name}<span className="ml-1.5 text-xs text-[var(--color-muted)]">{account.currency}</span></button>)}</div></motion.div> : null}
                 {listening || voiceStatus ? <p className={`px-4 pb-2 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
-                {plan ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={closeConversation} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
+                {plan ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={cancelPlan} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
                 {composer(true)}
               </motion.section>
             ) : null}
