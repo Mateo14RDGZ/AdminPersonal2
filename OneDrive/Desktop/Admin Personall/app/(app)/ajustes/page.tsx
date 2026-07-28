@@ -11,6 +11,7 @@ import { AccountsSection } from "@/components/accounts-section";
 import { AutomationSection } from "@/components/automation-section";
 import { CardsSection } from "@/components/cards-section";
 import { ImportSection } from "@/components/import-section";
+import { BottomSheet } from "@/components/app-motion";
 
 export default function AjustesPage() {
   const router = useRouter();
@@ -291,19 +292,17 @@ export default function AjustesPage() {
         </button>
       </section>
 
-      {editing ? (
-        <div className="fixed inset-0 z-[60] flex items-end bg-black/40 p-4 safe-bottom">
-          <div className="w-full max-w-lg rounded-[20px] bg-[var(--color-surface-elevated)] p-5">
-            <h3 className="font-semibold">{editing.id ? "Editar" : "Nueva"} categoría</h3>
+      <BottomSheet open={Boolean(editing)} labelledBy="category-sheet-title">
+            <h3 id="category-sheet-title" className="font-semibold">{editing?.id ? "Editar" : "Nueva"} categoría</h3>
             <div className="mt-3 space-y-3">
               <input
-                value={editing.name ?? ""}
+                value={editing?.name ?? ""}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 placeholder="Nombre"
                 className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-3 py-2.5"
               />
               <select
-                value={editing.icon ?? "category"}
+                value={editing?.icon ?? "category"}
                 onChange={(e) => setEditing({ ...editing, icon: e.target.value })}
                 className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-3 py-2.5"
               >
@@ -315,14 +314,14 @@ export default function AjustesPage() {
               </select>
               <input
                 type="color"
-                value={editing.color ?? "#1D9E75"}
+                value={editing?.color ?? "#1D9E75"}
                 onChange={(e) => setEditing({ ...editing, color: e.target.value })}
                 className="h-10 w-full"
               />
               <input
                 type="number"
                 min={0}
-                value={editing.monthly_budget ?? ""}
+                value={editing?.monthly_budget ?? ""}
                 onChange={(e) =>
                   setEditing({
                     ...editing,
@@ -346,9 +345,7 @@ export default function AjustesPage() {
                 Guardar
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </BottomSheet>
     </div>
   );
 }

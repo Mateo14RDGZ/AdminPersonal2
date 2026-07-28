@@ -13,6 +13,7 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { GoalsSection } from "@/components/goals-section";
 import { RecurringSection } from "@/components/recurring-section";
+import { BottomSheet } from "@/components/app-motion";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatCurrency,
@@ -173,7 +174,7 @@ export default function FinanzasPage() {
 
   return (
     <div className="space-y-6 pb-5">
-      <header className="page-enter flex items-start justify-between gap-3">
+      <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--color-muted)]">
             Plan mensual
@@ -192,7 +193,7 @@ export default function FinanzasPage() {
         </button>
       </header>
 
-      <section className="page-enter-delay space-y-3">
+      <section className="space-y-3">
         <div
           className="currency-tabs"
           role="group"
@@ -355,15 +356,13 @@ export default function FinanzasPage() {
         </p>
       ) : null}
 
-      {showForm ? (
-        <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom min-[390px]:px-3">
-          <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7 shadow-2xl">
+      <BottomSheet open={showForm} className="min-[390px]:px-3" panelClassName="shadow-2xl" labelledBy="finance-sheet-title">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-medium text-[var(--color-muted)]">
                   {kind === "income" ? "ENTRADA DE DINERO" : "AHORRO FIJO"}
                 </p>
-                <h2 className="mt-0.5 text-xl font-semibold">
+                <h2 id="finance-sheet-title" className="mt-0.5 text-xl font-semibold">
                   {kind === "income"
                     ? "Sumar al presupuesto"
                     : "Reservar cada mes"}
@@ -493,9 +492,7 @@ export default function FinanzasPage() {
                 {saving ? "Guardando…" : "Guardar"}
               </button>
             </form>
-          </div>
-        </div>
-      ) : null}
+      </BottomSheet>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { IconPlus, IconWallet, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { Account } from "@/lib/database.types";
+import { BottomSheet } from "@/components/app-motion";
 
 export function AccountsSection() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -154,13 +155,12 @@ export function AccountsSection() {
         ))}
       </div>
 
-      {open && mounted
+      {mounted
         ? createPortal(
-            <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom">
-              <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7">
+            <BottomSheet open={open} labelledBy="account-sheet-title">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-xl font-semibold">{editing ? "Editar cuenta" : "Nueva cuenta"}</h3>
+                    <h3 id="account-sheet-title" className="text-xl font-semibold">{editing ? "Editar cuenta" : "Nueva cuenta"}</h3>
                     {editing ? <p className="mt-1 text-xs text-[var(--color-muted)]">La moneda se mantiene para no alterar movimientos anteriores.</p> : null}
                   </div>
                   <button type="button" onClick={closeForm} className="pressable tap-target flex shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10" aria-label="Cerrar"><IconX size={19} /></button>
@@ -183,8 +183,7 @@ export function AccountsSection() {
                   <button className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] text-base font-semibold text-white" type="submit" disabled={saving}>{saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear cuenta"}</button>
                   {editing ? <button type="button" onClick={() => void removeAccount()} disabled={saving} className="pressable min-h-12 w-full rounded-2xl border border-red-500/35 text-sm font-semibold text-red-500 disabled:opacity-50">Eliminar cuenta</button> : null}
                 </form>
-              </div>
-            </div>,
+            </BottomSheet>,
             document.body
           )
         : null}

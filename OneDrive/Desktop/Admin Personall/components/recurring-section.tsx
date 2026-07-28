@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { IconCalendarRepeat, IconPlus, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { Account, RecurringTransaction } from "@/lib/database.types";
+import { BottomSheet } from "@/components/app-motion";
 
 export function RecurringSection() {
   const [items, setItems] = useState<RecurringTransaction[]>([]);
@@ -74,11 +75,9 @@ export function RecurringSection() {
           <p className="font-semibold">{formatCurrency(Number(item.amount), item.currency)}</p>
         </div>
       ))}
-      {open ? (
-        <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom">
-          <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7">
+      <BottomSheet open={open} labelledBy="recurring-sheet-title">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Pago mensual</h3>
+              <h3 id="recurring-sheet-title" className="text-xl font-semibold">Pago mensual</h3>
               <button type="button" onClick={() => setOpen(false)} className="tap-target flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10" aria-label="Cerrar"><IconX size={19} /></button>
             </div>
             <form onSubmit={save} className="mt-5 space-y-3">
@@ -96,10 +95,7 @@ export function RecurringSection() {
               <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required className="app-input" />
               <button type="submit" className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white">Guardar próximo pago</button>
             </form>
-          </div>
-        </div>
-      ) : null}
+      </BottomSheet>
     </section>
   );
 }
-

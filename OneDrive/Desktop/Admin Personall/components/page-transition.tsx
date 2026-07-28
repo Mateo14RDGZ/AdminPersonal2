@@ -1,13 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { AppPageTransition } from "@/components/app-motion";
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  return (
-    <div key={pathname} className="route-enter">
-      {children}
-    </div>
-  );
+  return <AppPageTransition path={pathname}>{children}</AppPageTransition>;
 }

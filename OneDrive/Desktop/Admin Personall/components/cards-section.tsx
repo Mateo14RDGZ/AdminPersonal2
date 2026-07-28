@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { IconCreditCard, IconPlus, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { CreditCard } from "@/lib/database.types";
+import { BottomSheet } from "@/components/app-motion";
 
 export function CardsSection() {
   const [cards, setCards] = useState<CreditCard[]>([]);
@@ -117,12 +118,11 @@ export function CardsSection() {
           </div>
         );
       })}
-      {open && mounted
+      {mounted
         ? createPortal(
-        <div className="sheet-backdrop fixed inset-0 z-[70] flex items-end bg-black/45 px-2 pt-10 safe-bottom">
-          <div className="sheet-enter sheet-panel mx-auto w-full max-w-[430px] rounded-t-[28px] bg-[var(--color-surface-elevated)] p-5 pb-7">
+        <BottomSheet open={open} labelledBy="card-sheet-title">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Nueva tarjeta</h3>
+              <h3 id="card-sheet-title" className="text-xl font-semibold">Nueva tarjeta</h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -154,8 +154,7 @@ export function CardsSection() {
                 {saving ? "Creando…" : "Crear tarjeta"}
               </button>
             </form>
-          </div>
-        </div>
+        </BottomSheet>
         , document.body)
         : null}
     </section>

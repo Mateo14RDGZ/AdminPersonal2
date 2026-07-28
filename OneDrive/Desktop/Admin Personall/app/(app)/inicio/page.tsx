@@ -104,7 +104,7 @@ export default function InicioPage() {
 
   return (
     <div className="space-y-6 pb-5">
-      <header className="page-enter flex items-end justify-between gap-3">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-[var(--color-muted)]">Tu dinero</p>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">Resumen</h1>
@@ -118,7 +118,7 @@ export default function InicioPage() {
         </Link>
       </header>
 
-      <section className="finance-hero page-enter-delay overflow-hidden rounded-[26px] p-5 text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,0.62)]">
+      <section className="finance-hero overflow-hidden rounded-[26px] p-5 text-white shadow-[0_18px_55px_-28px_rgba(0,0,0,0.62)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm text-white/70">Saldo disponible en cuentas</p>

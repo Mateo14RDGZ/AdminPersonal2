@@ -7,6 +7,7 @@ import Link from "next/link";
 import { formatDayHeader } from "@/lib/format";
 import type { Category, TransactionWithCategory } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/client";
+import { BottomSheet } from "@/components/app-motion";
 
 export default function MovimientosPage() {
   const [items, setItems] = useState<TransactionWithCategory[]>([]);
@@ -95,7 +96,7 @@ export default function MovimientosPage() {
 
   return (
     <div className="space-y-4 pb-4">
-      <header className="page-enter">
+      <header>
         <p className="text-sm font-medium text-[var(--color-muted)]">Historial</p>
         <h1 className="text-2xl font-semibold tracking-tight">Movimientos</h1>
       </header>
@@ -164,10 +165,8 @@ export default function MovimientosPage() {
         </div>
       )}
 
-      {editId ? (
-        <div className="fixed inset-0 z-[60] flex items-end bg-black/40 p-4 safe-bottom">
-          <div className="w-full max-w-lg rounded-[20px] bg-[var(--color-surface-elevated)] p-5">
-            <h3 className="font-semibold">Recategorizar</h3>
+      <BottomSheet open={Boolean(editId)} labelledBy="recategorize-sheet-title">
+            <h3 id="recategorize-sheet-title" className="font-semibold">Recategorizar</h3>
             <select
               value={editCategory}
               onChange={(e) => setEditCategory(e.target.value)}
@@ -197,9 +196,7 @@ export default function MovimientosPage() {
                 Guardar
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
+      </BottomSheet>
     </div>
   );
 }
