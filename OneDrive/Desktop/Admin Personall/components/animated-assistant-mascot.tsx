@@ -40,15 +40,16 @@ function moodFrom(chat: ChatState, emotion: EmotionalState): PesadillaMood {
 
 function chooseTarget(bounds: DOMRect, keyboardOpen: boolean, name: TargetName): Target {
   const width = bounds.width;
-  const safeBottom = bounds.height - (keyboardOpen ? 310 : 185);
+  const horizontalRange = Math.max(68, Math.min(width * .38, width / 2 - 58));
+  const safeBottom = Math.max(155, bounds.height - (keyboardOpen ? 318 : 178));
   const map: Record<TargetName, Target> = {
-    rest: { name: "rest", x: -width * .16, y: Math.min(210, safeBottom), rotate: -2, lookX: .1, lookY: .2 },
-    upperLeft: { name: "upperLeft", x: -width * .33, y: 118, rotate: -6, lookX: -.8, lookY: -.5 },
-    upperRight: { name: "upperRight", x: width * .3, y: 132, rotate: 6, lookX: .8, lookY: -.45 },
-    center: { name: "center", x: 0, y: Math.max(150, safeBottom * .46), rotate: 1, lookX: 0, lookY: .1 },
-    nearInput: { name: "nearInput", x: width * .22, y: Math.max(118, safeBottom), rotate: 4, lookX: .2, lookY: .9 },
-    lastMessage: { name: "lastMessage", x: width * .22, y: Math.max(165, safeBottom * .63), rotate: 3, lookX: .45, lookY: .25 },
-    response: { name: "response", x: -width * .18, y: Math.max(155, safeBottom * .54), rotate: -3, lookX: -.4, lookY: .18 },
+    rest: { name: "rest", x: -horizontalRange * .44, y: Math.min(272, safeBottom * .52), rotate: -3, lookX: .1, lookY: .2 },
+    upperLeft: { name: "upperLeft", x: -horizontalRange, y: 112, rotate: -8, lookX: -.8, lookY: -.5 },
+    upperRight: { name: "upperRight", x: horizontalRange, y: 136, rotate: 8, lookX: .8, lookY: -.45 },
+    center: { name: "center", x: 0, y: Math.max(178, Math.min(320, safeBottom * .52)), rotate: 1, lookX: 0, lookY: .1 },
+    nearInput: { name: "nearInput", x: horizontalRange * .63, y: Math.max(132, Math.min(safeBottom, 380)), rotate: 6, lookX: .2, lookY: .9 },
+    lastMessage: { name: "lastMessage", x: horizontalRange * .68, y: Math.max(185, Math.min(safeBottom * .68, 360)), rotate: 5, lookX: .45, lookY: .25 },
+    response: { name: "response", x: -horizontalRange * .62, y: Math.max(175, Math.min(safeBottom * .57, 330)), rotate: -5, lookX: -.4, lookY: .18 },
   };
   return map[name];
 }
@@ -89,11 +90,17 @@ export function AnimatedAssistantMascot({
   const xTarget = useMotionValue(0);
   const yTarget = useMotionValue(0);
   const rotateTarget = useMotionValue(0);
+  const stretchXTarget = useMotionValue(1);
+  const stretchYTarget = useMotionValue(1);
+  const skewTarget = useMotionValue(0);
   const lookX = useMotionValue(0);
   const lookY = useMotionValue(0);
   const x = useSpring(xTarget, { stiffness: 42, damping: 15, mass: 1.08 });
   const y = useSpring(yTarget, { stiffness: 38, damping: 16, mass: 1.2 });
   const rotation = useSpring(rotateTarget, { stiffness: 70, damping: 16, mass: .85 });
+  const stretchX = useSpring(stretchXTarget, { stiffness: 120, damping: 16, mass: .54 });
+  const stretchY = useSpring(stretchYTarget, { stiffness: 110, damping: 17, mass: .58 });
+  const flightSkew = useSpring(skewTarget, { stiffness: 130, damping: 17, mass: .45 });
   const pupilX = useSpring(lookX, { stiffness: 210, damping: 22, mass: .3 });
   const pupilY = useSpring(lookY, { stiffness: 210, damping: 22, mass: .3 });
 
@@ -119,6 +126,11 @@ export function AnimatedAssistantMascot({
     const bounds = stageRef.current?.getBoundingClientRect();
     if (!bounds) return;
     const target = chooseTarget(bounds, keyboardOpen, name);
+    const deltaX = target.x - xTarget.get();
+    const deltaY = target.y - yTarget.get();
+    const distance = Math.hypot(deltaX, deltaY);
+    const direction = deltaX === 0 ? 0 : Math.sign(deltaX);
+    const travelStrength = Math.min(.12, .045 + distance / 1900);
     historyRef.current = [...historyRef.current.slice(-3), name];
     setBehavior(intent);
     lookX.set(target.lookX);
@@ -126,7 +138,15 @@ export function AnimatedAssistantMascot({
     animate(xTarget, target.x, { type: "spring", stiffness: 44, damping: 15, mass: 1.12 });
     animate(yTarget, target.y, { type: "spring", stiffness: 40, damping: 16, mass: 1.26 });
     animate(rotateTarget, target.rotate, { type: "spring", stiffness: 72, damping: 16, mass: .82 });
-  }, [keyboardOpen, lookX, lookY, rotateTarget, xTarget, yTarget]);
+    animate(stretchXTarget, 1 + travelStrength, { type: "spring", stiffness: 155, damping: 15, mass: .36 });
+    animate(stretchYTarget, 1 - travelStrength * .62, { type: "spring", stiffness: 145, damping: 16, mass: .38 });
+    animate(skewTarget, direction * Math.min(5.5, 2 + distance / 55), { type: "spring", stiffness: 150, damping: 15, mass: .36 });
+    schedule(() => {
+      animate(stretchXTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
+      animate(stretchYTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
+      animate(skewTarget, 0, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
+    }, Math.min(960, Math.max(420, 360 + distance * 2.1)));
+  }, [keyboardOpen, lookX, lookY, rotateTarget, schedule, skewTarget, stretchXTarget, stretchYTarget, xTarget, yTarget]);
 
   useEffect(() => {
     const refresh = () => {
@@ -233,8 +253,10 @@ export function AnimatedAssistantMascot({
     <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`} data-behavior={behavior} data-emotion={emotion}>
       <motion.div className="assistant-mascot-particles" aria-hidden="true" animate={active ? { opacity: chatState === "thinking" ? 1 : .68, rotate: chatState === "thinking" ? 360 : 0 } : { opacity: 0 }} transition={{ duration: chatState === "thinking" ? 4.8 : .3, repeat: chatState === "thinking" ? Infinity : 0, ease: "linear" }}><i /><i /><i /></motion.div>
       <motion.div className="assistant-mascot-motion" style={{ x, y, rotate: rotation }}>
-        <motion.div animate={reducedMotion ? { opacity: 1 } : chatState === "error" ? { x: [0, -7, 8, -4, 0], scale: [1, .9, 1.03, 1] } : chatState === "completed" ? { y: [0, -12, 0, -7, 0], scale: [1, 1.11, .98, 1.05, 1] } : chatState === "streaming" ? { y: [0, -3, 0], scaleY: [1, 1.05, .99, 1] } : { y: [0, -5, 0, -2, 0], scaleY: [1, 1.025, .99, 1] }} transition={{ duration: chatState === "streaming" ? .72 : 2.25, repeat: chatState === "completed" || chatState === "error" || reducedMotion ? 0 : Infinity, ease: "easeInOut" }}>
-          <PesadillaAvatar size={fullScreen ? (isMobile ? 86 : 104) : 64} active={active} mood={mascotMood} blink={blink} lookX={pupilX} lookY={pupilY} />
+        <motion.div className="assistant-mascot-flight-shape" style={{ scaleX: stretchX, scaleY: stretchY, skewX: flightSkew }}>
+          <motion.div animate={reducedMotion ? { opacity: 1 } : chatState === "error" ? { x: [0, -7, 8, -4, 0], scale: [1, .9, 1.03, 1] } : chatState === "completed" ? { y: [0, -12, 0, -7, 0], scale: [1, 1.11, .98, 1.05, 1] } : chatState === "streaming" ? { y: [0, -3, 0], scaleY: [1, 1.05, .99, 1] } : { y: [0, -5, 0, -2, 0], scaleY: [1, 1.025, .99, 1] }} transition={{ duration: chatState === "streaming" ? .72 : 2.25, repeat: chatState === "completed" || chatState === "error" || reducedMotion ? 0 : Infinity, ease: "easeInOut" }}>
+            <PesadillaAvatar size={fullScreen ? (isMobile ? 96 : 108) : 64} active={active} mood={mascotMood} blink={blink} lookX={pupilX} lookY={pupilY} />
+          </motion.div>
         </motion.div>
       </motion.div>
     </div>

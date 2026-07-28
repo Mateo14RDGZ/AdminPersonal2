@@ -305,7 +305,7 @@ export function MoneyChat({ onRegistered }: Props) {
           <AnimatePresence>
             {conversationActive ? (
               <motion.section
-                className="fixed inset-0 z-[80] flex flex-col overflow-hidden bg-[var(--color-surface)]"
+                className="assistant-conversation fixed inset-0 z-[80] flex flex-col overflow-hidden bg-white text-[#18131f]"
                 initial={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
                 animate={{ opacity: 1, clipPath: "circle(150% at 50% 93%)", scale: 1 }}
                 exit={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}

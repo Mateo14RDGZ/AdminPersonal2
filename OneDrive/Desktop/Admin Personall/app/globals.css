@@ -247,6 +247,17 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     pointer-events: none;
     touch-action: none;
   }
+  .assistant-conversation {
+    --color-surface: #ffffff;
+    --color-surface-elevated: #ffffff;
+    --color-foreground: #18131f;
+    --color-muted: #6b6471;
+    --color-border: #ebe7ee;
+    color-scheme: light;
+    background: #ffffff !important;
+  }
+  .assistant-conversation .dark\:bg-white\/\[0\.015\],
+  .assistant-conversation .dark\:bg-white\/\[0\.08\] { background-color: rgba(24, 19, 31, .045) !important; }
   .assistant-mascot-stage::before {
     position: absolute;
     inset: 14px 26% 4px;
@@ -261,7 +272,9 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     top: 10px;
     left: calc(50% - 38px);
     will-change: transform;
+    transform-origin: 50% 54%;
   }
+  .assistant-mascot-flight-shape { transform-origin: 50% 54%; will-change: transform; }
   .assistant-mascot-stage-full .assistant-mascot-motion {
     top: 0;
     left: calc(50% - 64px);
