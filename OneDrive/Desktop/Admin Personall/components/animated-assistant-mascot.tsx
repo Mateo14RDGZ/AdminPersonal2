@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
 
@@ -14,6 +14,7 @@ type AnimatedAssistantMascotProps = {
   hasError?: boolean;
   isListening?: boolean;
   reducedMotion?: boolean;
+  fullScreen?: boolean;
   className?: string;
 };
 
@@ -30,9 +31,20 @@ function toGhostMood(state: MascotState): PesadillaMood {
   return "idle";
 }
 
-function chooseIdleDrift(isMobile: boolean): Drift {
+function chooseIdleDrift(isMobile: boolean, bounds: DOMRect | undefined, fullScreen: boolean): Drift {
   const horizontal = isMobile ? 18 : 42;
   const vertical = isMobile ? 8 : 18;
+  if (fullScreen && bounds) {
+    const horizontalRange = isMobile ? bounds.width * 0.31 : bounds.width * 0.38;
+    const top = isMobile ? 108 : 126;
+    const bottom = Math.max(top, bounds.height - (isMobile ? 190 : 220));
+    return {
+      x: Math.round((Math.random() - 0.5) * horizontalRange * 2),
+      y: Math.round(top + Math.random() * (bottom - top)),
+      rotate: Number(((Math.random() - 0.5) * 8).toFixed(1)),
+      scale: Number((0.98 + Math.random() * 0.06).toFixed(3)),
+    };
+  }
   return {
     x: Math.round((Math.random() - 0.5) * horizontal * 2),
     y: Math.round((Math.random() - 0.5) * vertical * 2),
@@ -53,6 +65,7 @@ export function AnimatedAssistantMascot({
   hasError = false,
   isListening = false,
   reducedMotion: reducedMotionOverride,
+  fullScreen = false,
   className = "",
 }: AnimatedAssistantMascotProps) {
   const motionReduced = useReducedMotion();
@@ -96,12 +109,12 @@ export function AnimatedAssistantMascot({
     }
     let timeout = 0;
     const wander = () => {
-      setDrift(chooseIdleDrift(isMobile));
+      setDrift(chooseIdleDrift(isMobile, stageRef.current?.getBoundingClientRect(), fullScreen));
       timeout = window.setTimeout(wander, 3600 + Math.round(Math.random() * 2600));
     };
-    timeout = window.setTimeout(wander, 1100 + Math.round(Math.random() * 900));
+    wander();
     return () => window.clearTimeout(timeout);
-  }, [isAnimating, isIdle, isMobile]);
+  }, [fullScreen, isAnimating, isIdle, isMobile]);
 
   useEffect(() => {
     if (!isAnimating || !isIdle) {
@@ -132,19 +145,19 @@ export function AnimatedAssistantMascot({
     if (pointerFrameRef.current) window.cancelAnimationFrame(pointerFrameRef.current);
   }, []);
 
-  const resetPointer = () => {
+  const resetPointer = useCallback(() => {
     if (pointerResetRef.current) window.clearTimeout(pointerResetRef.current);
     if (pointerFrameRef.current) {
       window.cancelAnimationFrame(pointerFrameRef.current);
       pointerFrameRef.current = null;
     }
     pointerResetRef.current = window.setTimeout(() => setLook({ x: 0, y: 0, lean: 0 }), 80);
-  };
+  }, []);
 
-  const followPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!finePointer || reduceMotion || !isOpen) return;
+  const followPointer = useCallback((event: PointerEvent) => {
+    if (!finePointer || reduceMotion || !isOpen || !stageRef.current) return;
     if (pointerResetRef.current) window.clearTimeout(pointerResetRef.current);
-    const bounds = event.currentTarget.getBoundingClientRect();
+    const bounds = stageRef.current.getBoundingClientRect();
     const normalizedX = Math.max(-1, Math.min(1, (event.clientX - (bounds.left + bounds.width / 2)) / (bounds.width / 2)));
     const normalizedY = Math.max(-1, Math.min(1, (event.clientY - (bounds.top + bounds.height / 2)) / (bounds.height / 2)));
     pointerTargetRef.current = { x: Number((normalizedX * 1.35).toFixed(2)), y: Number((normalizedY * 0.72).toFixed(2)), lean: Number((normalizedX * 2.8).toFixed(2)) };
@@ -153,7 +166,20 @@ export function AnimatedAssistantMascot({
       pointerFrameRef.current = null;
       setLook(pointerTargetRef.current);
     });
-  };
+  }, [finePointer, isOpen, reduceMotion]);
+
+  useEffect(() => {
+    if (!finePointer || reduceMotion || !isOpen || !visible) return;
+    const handlePointerMove = (event: PointerEvent) => followPointer(event);
+    const handlePointerLeave = () => resetPointer();
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("blur", handlePointerLeave);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("blur", handlePointerLeave);
+      resetPointer();
+    };
+  }, [finePointer, followPointer, isOpen, reduceMotion, resetPointer, visible]);
 
   const speaking = visualState === "speaking";
   const thinking = visualState === "thinking";
@@ -162,7 +188,7 @@ export function AnimatedAssistantMascot({
   const activeDrift = reduceMotion ? rest : drift;
 
   return (
-    <div ref={stageRef} className={`assistant-mascot-stage ${className}`} onPointerMove={followPointer} onPointerLeave={resetPointer}>
+    <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`}>
       <motion.div
         className="assistant-mascot-particles"
         aria-hidden="true"
@@ -186,7 +212,7 @@ export function AnimatedAssistantMascot({
           transition={reduceMotion ? { duration: 0.2 } : error ? { duration: 0.48 } : { duration: speaking ? 0.8 : 2.9, repeat: success || error ? 0 : Infinity, ease: "easeInOut" }}
         >
           <PesadillaAvatar
-            size={76}
+            size={fullScreen ? 92 : 76}
             active={isAnimating}
             mood={toGhostMood(visualState)}
             blink={blink}

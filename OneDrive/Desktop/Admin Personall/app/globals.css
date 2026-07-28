@@ -241,6 +241,14 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     isolation: isolate;
     touch-action: pan-y;
   }
+  .assistant-mascot-stage-full {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    height: auto;
+    pointer-events: none;
+    touch-action: none;
+  }
   .assistant-mascot-stage::before {
     position: absolute;
     inset: 14px 26% 4px;
@@ -255,6 +263,10 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     top: 10px;
     left: calc(50% - 38px);
     will-change: transform;
+  }
+  .assistant-mascot-stage-full .assistant-mascot-motion {
+    top: 0;
+    left: calc(50% - 46px);
   }
   .assistant-mascot-particles {
     position: absolute;
