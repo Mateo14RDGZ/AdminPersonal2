@@ -221,19 +221,18 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    border-radius: 16px;
-    color: #4d3a68;
-    background: linear-gradient(145deg, #cbb7ff, #8f74d6);
-    box-shadow: 0 11px 24px -12px rgba(66, 44, 109, .68), inset 0 1px 1px rgba(255,255,255,.48);
+    color: #8f32ee;
+    background: transparent;
+    box-shadow: none;
     transform: translateZ(0);
   }
-  .pesadilla-avatar svg { width: 84%; height: 84%; filter: drop-shadow(0 3px 3px rgba(33, 19, 56, .18)); }
+  .pesadilla-avatar svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 8px 12px rgba(96, 27, 202, .42)); }
   .pesadilla-avatar-active { animation: pesadilla-float 2.6s cubic-bezier(.42, 0, .58, 1) infinite; }
   .pesadilla-avatar-thinking .pesadilla-body { transform-origin: center; animation: pesadilla-think 1.1s ease-in-out infinite; }
   .pesadilla-avatar-listening .pesadilla-body { transform-origin: center; animation: pesadilla-listen .86s ease-in-out infinite; }
-  .pesadilla-avatar-ready { box-shadow: 0 11px 25px -12px rgba(53, 104, 79, .7), inset 0 1px 1px rgba(255,255,255,.52); }
-  .pesadilla-avatar-success { background: linear-gradient(145deg, #aee5c3, #4eaa75); color: #285f46; animation: pesadilla-success .58s cubic-bezier(.2, .9, .3, 1); }
-  .pesadilla-avatar-cancelled { background: linear-gradient(145deg, #ded6ec, #9e91b5); color: #655779; animation: pesadilla-cancel .46s ease-out; }
+  .pesadilla-avatar-ready { filter: brightness(1.08) saturate(1.15); }
+  .pesadilla-avatar-success { animation: pesadilla-success .58s cubic-bezier(.2, .9, .3, 1); }
+  .pesadilla-avatar-cancelled { filter: saturate(.72) hue-rotate(18deg); animation: pesadilla-cancel .46s ease-out; }
   .assistant-mascot-stage {
     position: relative;
     height: 98px;
@@ -243,7 +242,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   }
   .assistant-mascot-stage-full {
     position: absolute;
-    z-index: 0;
+    z-index: 20;
     inset: 0;
     height: auto;
     pointer-events: none;
@@ -266,7 +265,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   }
   .assistant-mascot-stage-full .assistant-mascot-motion {
     top: 0;
-    left: calc(50% - 46px);
+    left: calc(50% - 64px);
   }
   .assistant-mascot-particles {
     position: absolute;
@@ -462,6 +461,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
 @media (max-width: 640px) {
   .assistant-mascot-stage { height: 86px; }
   .assistant-mascot-motion { top: 5px; }
+  .assistant-mascot-stage-full .assistant-mascot-motion { left: calc(50% - 52px); }
 }
 
 @media (max-width: 374px) {

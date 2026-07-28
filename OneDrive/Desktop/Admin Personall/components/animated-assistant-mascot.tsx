@@ -212,7 +212,7 @@ export function AnimatedAssistantMascot({
           transition={reduceMotion ? { duration: 0.2 } : error ? { duration: 0.48 } : { duration: speaking ? 0.8 : 2.9, repeat: success || error ? 0 : Infinity, ease: "easeInOut" }}
         >
           <PesadillaAvatar
-            size={fullScreen ? 92 : 76}
+            size={fullScreen ? (isMobile ? 104 : 128) : 76}
             active={isAnimating}
             mood={toGhostMood(visualState)}
             blink={blink}
