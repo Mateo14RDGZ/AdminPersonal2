@@ -136,7 +136,7 @@ export function MoneyChat({ onRegistered }: Props) {
     setSending(true);
     try {
       if (plan.action === "register_movement") {
-        const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
+        const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultAccountId: plan.data.account_id, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo registrar el movimiento.");
         if (data.requiresConfirmation && data.confirmationUrl) {
@@ -187,7 +187,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 initial={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
                 animate={{ opacity: 1, clipPath: "inset(0% 0% 0% round 0px)", scale: 1 }}
                 exit={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
-                transition={{ duration: 0.78, ease: panelEase }}
+                transition={{ duration: 0.96, ease: panelEase }}
                 style={{ transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"

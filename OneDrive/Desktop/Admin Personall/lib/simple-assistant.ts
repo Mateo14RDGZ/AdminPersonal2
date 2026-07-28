@@ -47,5 +47,8 @@ export function simpleAssistantPlan(text: string, history: HistoryMessage[] = []
   const categoryColor = categoryColorReply(compact, history);
   if (categoryColor) return categoryColor;
   if (!MOVEMENT_WORDS.test(normalized) || !AMOUNT.test(normalized)) return null;
+  // A named source account must be resolved against the real account list by
+  // the guided assistant. Never let the fast path silently use a default.
+  if (/\b(?:efectivo|cash|desde|del|de la|con mi|cuenta)\b/i.test(normalized)) return null;
   return { action: "register_movement", message: "Entendi el movimiento. Revisalo y confirmalo para guardarlo.", data: { ...emptyData, raw_text: compact, currency: currencyFor(compact) } };
 }

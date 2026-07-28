@@ -39,6 +39,17 @@ describe("LocalTransactionParser", () => {
     expect(result.merchant).toBe("Makelele");
   });
 
+  it("treats cash as an explicit source account even when it follows the amount", async () => {
+    const result = await transactionParser.parse({ text: "Gasté 500 en efectivo en nafta" });
+    expect(result.accountHint).toBe("efectivo");
+    expect(result.categoryHint).toBe("Combustible");
+  });
+
+  it("recognizes a source written as cuenta efectivo", async () => {
+    const result = await transactionParser.parse({ text: "Gasté 500 de la cuenta efectivo en Makelele" });
+    expect(result.accountHint).toBe("efectivo");
+  });
+
   it("understands a casual spoken expense and account", async () => {
     const result = await transactionParser.parse({ text: "se me fueron 620 pesos desde el efectivo en Makelele" });
     expect(result.type).toBe("EXPENSE");

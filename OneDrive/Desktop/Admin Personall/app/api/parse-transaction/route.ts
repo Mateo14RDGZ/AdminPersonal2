@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   const [{ data: accounts }, { data: categories }, { data: merchantRules }] = await Promise.all([
     supabase
       .from("accounts")
-      .select("id,name,institution,currency,is_default")
+      .select("id,name,institution,type,currency,is_default")
       .eq("user_id", userId)
       .eq("is_archived", false),
     supabase
@@ -77,21 +77,20 @@ export async function POST(request: NextRequest) {
   const hint = interpretation.accountHint
     ? normalizeText(interpretation.accountHint)
     : "";
-  const account =
-    (parsedBody.data.defaultAccountId
-      ? currencyAccounts.find(
-          (candidate) => candidate.id === parsedBody.data.defaultAccountId
-        )
-      : null) ??
-    (hint
-      ? currencyAccounts.find((candidate) =>
-          normalizeText(
-            `${candidate.name} ${candidate.institution ?? ""}`
-          ).includes(hint)
-        )
-      : null) ??
-    currencyAccounts.find((candidate) => candidate.is_default) ??
-    (currencyAccounts.length === 1 ? currencyAccounts[0] : null);
+  const isCashHint = /^(efectivo|cash|billetes|caja)$/.test(hint);
+  const accountFromHint = hint
+    ? currencyAccounts.find((candidate) => {
+        const candidateText = normalizeText(`${candidate.name} ${candidate.institution ?? ""}`);
+        return (isCashHint && candidate.type === "CASH") || candidateText.includes(hint) || hint.includes(normalizeText(candidate.name));
+      })
+    : null;
+  // An explicit source account is a safety instruction, never a suggestion.
+  // If it does not match, leave the movement pending instead of using a default account.
+  const account = hint
+    ? accountFromHint
+    : (parsedBody.data.defaultAccountId
+      ? currencyAccounts.find((candidate) => candidate.id === parsedBody.data.defaultAccountId)
+      : null) ?? currencyAccounts.find((candidate) => candidate.is_default) ?? (currencyAccounts.length === 1 ? currencyAccounts[0] : null);
 
   const destinationHint = interpretation.destinationAccountHint
     ? normalizeText(interpretation.destinationAccountHint)

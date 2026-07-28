@@ -8,6 +8,9 @@ describe("simpleAssistantPlan", () => {
   it("keeps dollars as USD", () => {
     expect(simpleAssistantPlan("Ahorr\u00e9 200 d\u00f3lares")?.data.currency).toBe("USD");
   });
+  it("routes movements with an explicit source account through the guided assistant", () => {
+    expect(simpleAssistantPlan("Gasté 500 en efectivo en nafta")).toBeNull();
+  });
   it("sends account setup to the guided assistant", () => {
     expect(simpleAssistantPlan("crea una cuenta llamada itau")).toBeNull();
   });
