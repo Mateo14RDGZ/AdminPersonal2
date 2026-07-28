@@ -106,12 +106,18 @@ export function useMascotBrain(input: BrainInput) {
   const yTarget = useMotionValue(170);
   const rotateTarget = useMotionValue(0);
   const energyTarget = useMotionValue(.2);
+  const stretchXTarget = useMotionValue(1);
+  const stretchYTarget = useMotionValue(1);
+  const skewTarget = useMotionValue(0);
   const lookXTarget = useMotionValue(0);
   const lookYTarget = useMotionValue(0);
   const x = useSpring(xTarget, { stiffness: 43, damping: 15, mass: 1.16 });
   const y = useSpring(yTarget, { stiffness: 39, damping: 16, mass: 1.27 });
   const rotation = useSpring(rotateTarget, { stiffness: 75, damping: 17, mass: .86 });
   const energy = useSpring(energyTarget, { stiffness: 110, damping: 17, mass: .65 });
+  const stretchX = useSpring(stretchXTarget, { stiffness: 125, damping: 16, mass: .55 });
+  const stretchY = useSpring(stretchYTarget, { stiffness: 120, damping: 17, mass: .58 });
+  const flightSkew = useSpring(skewTarget, { stiffness: 125, damping: 17, mass: .5 });
   const lookX = useSpring(lookXTarget, { stiffness: 230, damping: 24, mass: .24 });
   const lookY = useSpring(lookYTarget, { stiffness: 230, damping: 24, mass: .24 });
 
@@ -133,17 +139,30 @@ export function useMascotBrain(input: BrainInput) {
       const bounds = input.stageRef.current?.getBoundingClientRect();
       if (!bounds) return;
       const target = targetFor(bounds, zone, keyboardOpen);
-      const distance = Math.hypot(target.x - xTarget.get(), target.y - yTarget.get());
+      const deltaX = target.x - xTarget.get();
+      const deltaY = target.y - yTarget.get();
+      const distance = Math.hypot(deltaX, deltaY);
       lookXTarget.set(target.lookX); lookYTarget.set(target.lookY);
       animate(rotateTarget, target.rotate, { type: "spring", stiffness: 76, damping: 17, mass: .82 });
       // A short anticipatory lean is followed by a spring flight and an overshoot.
       animate(xTarget, target.x, { type: "spring", stiffness: 42, damping: 14, mass: 1.16 });
       animate(yTarget, target.y, { type: "spring", stiffness: 38, damping: 15, mass: 1.25 });
+      // Ghost-like squash and drag only while travelling. The effect is
+      // deliberately subtle so the approved face stays recognisable.
+      const flightAmount = clamp(distance / 300, 0, 1);
+      animate(stretchXTarget, 1 + flightAmount * .045, { duration: .16, ease: "easeOut" });
+      animate(stretchYTarget, 1 - flightAmount * .035, { duration: .16, ease: "easeOut" });
+      animate(skewTarget, clamp(-deltaX / 34, -3.5, 3.5), { duration: .16, ease: "easeOut" });
       animate(energyTarget, clamp(energyValue + distance / 340, 0, 1), { duration: .16, ease: "easeOut" });
       setBrain((current) => ({ ...current, behavior, attention, energy: clamp(energyValue + distance / 340, 0, 1) }));
       schedule(() => animate(energyTarget, energyValue, { type: "spring", stiffness: 108, damping: 16, mass: .65 }), clamp(480 + distance * 2.3, 520, 1250));
+      schedule(() => {
+        animate(stretchXTarget, 1, { type: "spring", stiffness: 115, damping: 15, mass: .62 });
+        animate(stretchYTarget, 1, { type: "spring", stiffness: 115, damping: 16, mass: .64 });
+        animate(skewTarget, 0, { type: "spring", stiffness: 120, damping: 16, mass: .56 });
+      }, clamp(420 + distance * 2.1, 520, 1150));
     };
-  }, [energyTarget, input.stageRef, keyboardOpen, lookXTarget, lookYTarget, rotateTarget, schedule, xTarget, yTarget]);
+  }, [energyTarget, input.stageRef, keyboardOpen, lookXTarget, lookYTarget, rotateTarget, schedule, skewTarget, stretchXTarget, stretchYTarget, xTarget, yTarget]);
 
   useEffect(() => {
     lastInteraction.current = Date.now();
@@ -245,5 +264,5 @@ export function useMascotBrain(input: BrainInput) {
   }, [energyTarget, input.stageRef, lookXTarget, lookYTarget, phase, schedule, visible, xTarget, yTarget]);
 
   const mood = moodFor(phase, brain.micro, intent?.emotion ?? brain.emotion);
-  return { ...brain, phase, mood, x, y, rotation, energy, lookX, lookY, active: phase !== "closed" && visible && !reducedMotion, keyboardOpen, intent };
+  return { ...brain, phase, mood, x, y, rotation, energy, stretchX, stretchY, flightSkew, lookX, lookY, active: phase !== "closed" && visible && !reducedMotion, keyboardOpen, intent };
 }

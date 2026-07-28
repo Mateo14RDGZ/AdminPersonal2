@@ -43,19 +43,24 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: Pe
 
   return (
     <span className={`pesadilla-avatar pesadilla-avatar-${mood} ${active ? "pesadilla-avatar-active" : ""}`} style={{ width: size, height: size }} aria-hidden="true">
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.img
-          key={frame}
-          src={source}
-          alt=""
-          draggable={false}
-          className="pesadilla-avatar-original"
-          initial={{ opacity: 0, scale: .9, filter: "blur(1px)" }}
-          animate={{ ...animation, opacity: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: .92, filter: "blur(.7px)" }}
-          transition={{ duration, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
+      {/* The body loops, but the face frame must always be allowed to exit.
+          Keeping these layers separate prevents a previous expression from
+          getting stuck behind an infinite animation. */}
+      <motion.span className="pesadilla-avatar-body" animate={animation} transition={{ duration, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}>
+        <AnimatePresence initial={false} mode="sync">
+          <motion.img
+            key={frame}
+            src={source}
+            alt=""
+            draggable={false}
+            className="pesadilla-avatar-original"
+            initial={{ opacity: 0, scale: .94, filter: "blur(.65px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, scale: .96, filter: "blur(.4px)" }}
+            transition={{ duration: .22, ease: "easeOut" }}
+          />
+        </AnimatePresence>
+      </motion.span>
     </span>
   );
 }
