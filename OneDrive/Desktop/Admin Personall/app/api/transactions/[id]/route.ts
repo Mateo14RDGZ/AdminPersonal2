@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { patchTransactionSchema } from "@/lib/validation";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -109,6 +111,15 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     .eq("id", id)
     .eq("user_id", user.id);
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+
+  // Reconcile from remaining confirmed history. This is especially important
+  // for legacy databases where a prior insert/delete function did not keep
+  // `current_balance` in sync, and covers both ends of a transfer.
+  try {
+    await reconcileUserAccountBalances(createServiceClient(), user.id);
+  } catch (reconciliationError) {
+    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "El movimiento se eliminó, pero no se pudo actualizar el saldo." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
