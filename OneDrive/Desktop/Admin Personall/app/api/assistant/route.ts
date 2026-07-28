@@ -71,13 +71,19 @@ function explicitAccountMention(text: string, accounts: AccountContext[]) {
   const cash = /\b(?:efectivo|cash)\b/.test(normalized);
   const phrase = normalized.match(/\b(?:en|a|desde|con|del|de la)\s+(?:la |el |mi )?(?:cuenta )?([\p{L}\p{N} -]+?)(?:\s+(?:en|para|por)\s+|$)/u)?.[1]?.trim();
   const hint = cash ? "efectivo" : phrase?.replace(/^cuenta\s+/, "") ?? null;
-  if (!hint) return { explicit: false, accountId: null, name: null };
+  const directAccount = accounts.find((candidate) => {
+    const candidateName = candidate.name.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const institution = (candidate.institution ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    return normalized.trim() === candidateName || normalized.trim() === institution;
+  });
+  if (!hint && !directAccount) return { explicit: false, accountId: null, name: null };
+  const matchingHint = hint ?? "";
   const account = accounts.find((candidate) => {
     const candidateName = candidate.name.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
     const institution = (candidate.institution ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-    return (cash && candidate.type === "CASH") || candidateName.includes(hint) || institution.includes(hint) || hint.includes(candidateName);
+    return (cash && candidate.type === "CASH") || candidateName.includes(matchingHint) || institution.includes(matchingHint) || matchingHint.includes(candidateName);
   });
-  return { explicit: true, accountId: account?.id ?? null, name: hint };
+  return { explicit: true, accountId: account?.id ?? directAccount?.id ?? null, name: hint ?? directAccount?.name ?? null };
 }
 
 export async function POST(request: NextRequest) {
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
   const draft = draftResult.success ? draftResult.data : null;
   if (!text || text.length > 1000) return NextResponse.json({ error: "Escribi un mensaje valido." }, { status: 400 });
   const localPlan = simpleAssistantPlan(text, history);
-  if (localPlan) return NextResponse.json({ plan: localPlan, draft: { action: localPlan.action === "reply" ? draft?.action ?? null : localPlan.action, data: localPlan.data }, requiresConfirmation: true, usedAI: false });
+  if (localPlan) return NextResponse.json({ plan: localPlan, draft: { action: localPlan.data.raw_text ? "register_movement" : localPlan.action === "reply" ? draft?.action ?? null : localPlan.action, data: localPlan.data }, requiresConfirmation: false, usedAI: false });
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "La IA no esta configurada." }, { status: 503 });
 

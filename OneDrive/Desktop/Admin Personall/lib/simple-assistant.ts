@@ -47,8 +47,7 @@ export function simpleAssistantPlan(text: string, history: HistoryMessage[] = []
   const categoryColor = categoryColorReply(compact, history);
   if (categoryColor) return categoryColor;
   if (!MOVEMENT_WORDS.test(normalized) || !AMOUNT.test(normalized)) return null;
-  // A named source account must be resolved against the real account list by
-  // the guided assistant. Never let the fast path silently use a default.
-  if (/\b(?:efectivo|cash|desde|del|de la cuenta|con)\b/i.test(normalized)) return null;
-  return { action: "register_movement", message: "Entendi el movimiento. Revisalo y confirmalo para guardarlo.", data: { ...emptyData, raw_text: compact, currency: currencyFor(compact) } };
+  // A financial movement is never proposed until it is linked to a real
+  // account. The next chat turn can simply be “efectivo”, “Itaú”, etc.
+  return { action: "reply", message: "¿En qué cuenta querés registrar este movimiento? Podés decir, por ejemplo, efectivo, Itaú o Scotia.", data: { ...emptyData, raw_text: compact, currency: currencyFor(compact) } };
 }

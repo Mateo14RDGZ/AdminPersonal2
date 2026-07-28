@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconSparkles, IconX } from "@tabler/icons-react";
+import { loadAccounts } from "@/lib/accounts-client";
+import type { Account } from "@/lib/database.types";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -19,6 +21,20 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 const initialMessages: Message[] = [{ role: "assistant", text: "Contame qué querés organizar. Te guío y lo dejo listo para confirmar." }];
 const panelEase = [0.16, 1, 0.3, 1] as const;
 
+function normalizeAccountText(value: string) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+function accountMentionInText(value: string, accounts: Account[]) {
+  const normalized = normalizeAccountText(value);
+  if (/\b(?:efectivo|cash)\b/.test(normalized)) return accounts.find((account) => account.type === "CASH") ?? null;
+  return accounts.find((account) => {
+    const name = normalizeAccountText(account.name);
+    const institution = account.institution ? normalizeAccountText(account.institution) : "";
+    return normalized.includes(name) || (institution.length > 2 && normalized.includes(institution));
+  }) ?? null;
+}
+
 export function MoneyChat({ onRegistered }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -28,6 +44,7 @@ export function MoneyChat({ onRegistered }: Props) {
   const [voiceStatus, setVoiceStatus] = useState("");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [draft, setDraft] = useState<ConversationDraft | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [mounted, setMounted] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -35,6 +52,7 @@ export function MoneyChat({ onRegistered }: Props) {
 
   useEffect(() => {
     setMounted(true);
+    void loadAccounts().then(setAccounts).catch(() => undefined);
     return () => {
       recognitionRef.current?.stop();
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
@@ -71,9 +89,24 @@ export function MoneyChat({ onRegistered }: Props) {
       }
       const nextPlan = data.plan as Plan;
       const nextDraft = data.draft as ConversationDraft | undefined;
-      setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
-      setPlan(nextPlan.action === "reply" ? null : nextPlan);
-      setDraft(nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data });
+      const resolvedDraft = nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data };
+      const availableAccounts = accounts.length ? accounts : await loadAccounts().catch(() => [] as Account[]);
+      if (!accounts.length && availableAccounts.length) setAccounts(availableAccounts);
+      const detectedAccount = resolvedDraft.action === "register_movement" ? accountMentionInText(value, availableAccounts) : null;
+      if (detectedAccount && resolvedDraft.data.raw_text) {
+        const readyPlan: Plan = {
+          action: "register_movement",
+          message: `Entendí: voy a registrarlo en ${detectedAccount.name}. Confirmalo para guardarlo.`,
+          data: { ...resolvedDraft.data, account_id: detectedAccount.id, currency: detectedAccount.currency },
+        };
+        setMessages((current) => [...current, { role: "assistant", text: readyPlan.message }]);
+        setPlan(readyPlan);
+        setDraft({ action: "register_movement", data: readyPlan.data });
+      } else {
+        setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
+        setPlan(nextPlan.action === "reply" ? null : nextPlan);
+        setDraft(resolvedDraft);
+      }
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
     } finally {
@@ -158,6 +191,24 @@ export function MoneyChat({ onRegistered }: Props) {
     }
   };
 
+  const movementNeedsAccount = Boolean(
+    (draft?.action === "register_movement" || plan?.action === "register_movement") &&
+    !(plan?.action === "register_movement" && plan.data.account_id)
+  );
+
+  const selectMovementAccount = (account: Account) => {
+    const movementData = plan?.action === "register_movement" ? plan.data : draft?.data;
+    if (!movementData?.raw_text) return;
+    const readyPlan: Plan = {
+      action: "register_movement",
+      message: `Perfecto, lo voy a registrar en ${account.name}. Confirmalo para guardarlo.`,
+      data: { ...movementData, account_id: account.id, currency: account.currency },
+    };
+    setMessages((current) => [...current, { role: "assistant", text: readyPlan.message }]);
+    setPlan(readyPlan);
+    setDraft({ action: "register_movement", data: readyPlan.data });
+  };
+
   const composer = (expanded: boolean) => (
     <form onSubmit={send} className={`relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
       <input autoFocus={expanded} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
@@ -200,6 +251,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
+                {movementNeedsAccount ? <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.44, ease: panelEase }} className="mx-3 mb-3 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/7 p-3"><p className="px-1 text-sm font-semibold">Elegí la cuenta</p><p className="mt-0.5 px-1 text-xs text-[var(--color-muted)]">El movimiento se guardará únicamente en la cuenta que selecciones.</p><div className="mt-3 flex flex-wrap gap-2">{accounts.map((account) => <button key={account.id} type="button" onClick={() => selectMovementAccount(account)} className="pressable min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm font-medium">{account.name}<span className="ml-1.5 text-xs text-[var(--color-muted)]">{account.currency}</span></button>)}</div></motion.div> : null}
                 {listening || voiceStatus ? <p className={`px-4 pb-2 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
                 {plan ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={closeConversation} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
                 {composer(true)}
