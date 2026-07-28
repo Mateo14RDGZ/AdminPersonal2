@@ -226,13 +226,12 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     box-shadow: none;
     transform: translateZ(0);
   }
-  .pesadilla-avatar svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 8px 12px rgba(96, 27, 202, .42)); }
-  .pesadilla-avatar-active { animation: pesadilla-float 2.6s cubic-bezier(.42, 0, .58, 1) infinite; }
+  .pesadilla-avatar-art { display: block; width: 100%; height: 100%; transform-origin: 50% 54%; will-change: transform, filter; }
+  .pesadilla-avatar-art img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(96, 27, 202, .52)); user-select: none; -webkit-user-drag: none; }
+  .pesadilla-avatar-active { will-change: transform; }
   .pesadilla-avatar-thinking .pesadilla-body { transform-origin: center; animation: pesadilla-think 1.1s ease-in-out infinite; }
   .pesadilla-avatar-listening .pesadilla-body { transform-origin: center; animation: pesadilla-listen .86s ease-in-out infinite; }
-  .pesadilla-avatar-ready { filter: brightness(1.08) saturate(1.15); }
-  .pesadilla-avatar-success { animation: pesadilla-success .58s cubic-bezier(.2, .9, .3, 1); }
-  .pesadilla-avatar-cancelled { filter: saturate(.72) hue-rotate(18deg); animation: pesadilla-cancel .46s ease-out; }
+  .pesadilla-avatar-ready, .pesadilla-avatar-success, .pesadilla-avatar-cancelled { filter: none; }
   .assistant-mascot-stage {
     position: relative;
     height: 98px;
