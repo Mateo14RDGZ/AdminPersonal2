@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     !account ||
     !(interpretation.merchant?.trim() || interpretation.description?.trim()) ||
     (interpretation.type === "TRANSFER" && !destinationAccount) ||
-    interpretation.confidence < 0.85;
+    (!parsedBody.data.confirmedByAssistant && interpretation.confidence < 0.85);
 
   if (
     parsedBody.data.source === "siri" &&

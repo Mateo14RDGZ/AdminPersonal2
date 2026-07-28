@@ -99,6 +99,7 @@ export const parseTransactionSchema = z.object({
   dryRun: z.boolean().default(false),
   defaultAccountId: z.string().uuid().optional().nullable(),
   defaultCurrency: currencySchema.default("UYU"),
+  confirmedByAssistant: z.boolean().default(false),
   occurredAt: z.string().datetime().optional().nullable(),
   idempotencyKey: z.string().min(8).max(200).optional().nullable(),
 });

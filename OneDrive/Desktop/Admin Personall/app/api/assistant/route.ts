@@ -147,6 +147,10 @@ export async function POST(request: NextRequest) {
     }
     await logAssistantUsage(session.user.id, Number(result?.usage?.total_tokens ?? 0));
     let finalPlan = normalized!.plan;
+    if (finalPlan.action === "register_movement" && !finalPlan.data.raw_text) {
+      finalPlan = { ...finalPlan, data: { ...finalPlan.data, raw_text: text } };
+      normalized = { ...normalized!, plan: finalPlan };
+    }
     // There is no "unassigned" expense or income in this app.  The model may
     // understand the category perfectly, but it cannot offer confirmation
     // until a real source account is known.

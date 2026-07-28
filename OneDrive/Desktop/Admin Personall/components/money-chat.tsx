@@ -130,7 +130,13 @@ export function MoneyChat({ onRegistered }: Props) {
       if (responsePulseTimerRef.current) window.clearTimeout(responsePulseTimerRef.current);
       responsePulseTimerRef.current = window.setTimeout(() => setResponsePulse(false), 900);
       const nextDraft = data.draft as ConversationDraft | undefined;
-      const resolvedDraft = nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data };
+      const unresolvedDraft = nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data };
+      // A model response must never lose the original movement phrase. The
+      // account picker needs it later to create exactly the movement the user
+      // already described.
+      const resolvedDraft: ConversationDraft = unresolvedDraft.action === "register_movement"
+        ? { ...unresolvedDraft, data: { ...unresolvedDraft.data, raw_text: unresolvedDraft.data.raw_text ?? value } }
+        : unresolvedDraft;
       const availableAccounts = accounts.length ? accounts : await loadAccounts().catch(() => [] as Account[]);
       if (!accounts.length && availableAccounts.length) setAccounts(availableAccounts);
       const detectedAccount = resolvedDraft.action === "register_movement" ? accountMentionInText(value, availableAccounts) : null;
@@ -216,7 +222,7 @@ export function MoneyChat({ onRegistered }: Props) {
         if (!availableAccounts.some((account) => account.id === plan.data.account_id)) {
           throw new Error("La cuenta elegida ya no está disponible. Elegí otra cuenta.");
         }
-        const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultAccountId: plan.data.account_id, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
+        const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, confirmedByAssistant: true, defaultAccountId: plan.data.account_id, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo registrar el movimiento.");
         if (data.requiresConfirmation && data.confirmationUrl) {
@@ -259,6 +265,8 @@ export function MoneyChat({ onRegistered }: Props) {
       data: { ...movementData, account_id: account.id, currency: account.currency },
     };
     setMessages((current) => [...current, { role: "assistant", text: readyPlan.message }]);
+    setHasAssistantError(false);
+    setReaction(null);
     setPlan(readyPlan);
     setDraft({ action: "register_movement", data: readyPlan.data });
   };
