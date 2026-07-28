@@ -66,6 +66,16 @@ export function MoneyChat({ onRegistered }: Props) {
   const responsePulseTimerRef = useRef<number | null>(null);
   const suggestions = ["Configurar mis cuentas", "Crear una categoría", "Registrar mi sueldo"];
 
+  const captureMascotOrigin = () => {
+    const anchor = mascotAnchorRef.current?.getBoundingClientRect();
+    if (!anchor) return;
+    setMascotOrigin({
+      x: anchor.left + anchor.width / 2,
+      y: anchor.top + anchor.height / 2,
+      size: Math.max(anchor.width, anchor.height),
+    });
+  };
+
   useEffect(() => {
     setMounted(true);
     void loadAccounts().then(setAccounts).catch(() => undefined);
@@ -99,7 +109,7 @@ export function MoneyChat({ onRegistered }: Props) {
       setInputFocused(false);
       setResponsePulse(false);
       setMessages(initialMessages);
-    }, 640);
+    }, 1060);
   };
 
   const finishConversation = (mood: Extract<PesadillaMood, "success" | "cancelled">) => {
@@ -113,8 +123,7 @@ export function MoneyChat({ onRegistered }: Props) {
     const value = rawText.trim();
     if (!value || sending) return;
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    const anchor = mascotAnchorRef.current?.getBoundingClientRect();
-    if (anchor) setMascotOrigin({ x: anchor.left + anchor.width / 2, y: anchor.top + anchor.height / 2, size: Math.max(anchor.width, anchor.height) });
+    captureMascotOrigin();
     setMascotReturning(false);
     setMessages((current) => [...current, { role: "user", text: value }]);
     setConversationActive(true);
@@ -192,6 +201,7 @@ export function MoneyChat({ onRegistered }: Props) {
     const SpeechRecognition = recognizerWindow.SpeechRecognition ?? recognizerWindow.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setVoiceStatus("El dictado no está disponible en este navegador. Abrí la app desde Safari en tu iPhone.");
+      captureMascotOrigin();
       setConversationActive(true);
       return;
     }
@@ -223,6 +233,7 @@ export function MoneyChat({ onRegistered }: Props) {
     };
     recognition.onend = () => setListening(false);
     recognitionRef.current = recognition;
+    captureMascotOrigin();
     setListening(true);
     setConversationActive(true);
     recognition.start();
@@ -315,6 +326,10 @@ export function MoneyChat({ onRegistered }: Props) {
     </form>
   );
 
+  const mascotClipOrigin = mascotOrigin
+    ? `${Math.round(mascotOrigin.x)}px ${Math.round(mascotOrigin.y)}px`
+    : "50% 93%";
+
   return (
     <>
       <section className="assistant-card app-card overflow-hidden">
@@ -333,10 +348,10 @@ export function MoneyChat({ onRegistered }: Props) {
             {conversationActive ? (
               <motion.section
                 className="assistant-conversation fixed inset-0 z-[80] flex flex-col overflow-hidden bg-white text-[#18131f]"
-                initial={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
-                animate={{ opacity: 1, clipPath: "circle(150% at 50% 93%)", scale: 1 }}
-                exit={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
-                transition={{ duration: 1.08, ease: panelEase }}
+                initial={{ opacity: 0, clipPath: `circle(22px at ${mascotClipOrigin})`, scale: 0.985 }}
+                animate={{ opacity: 1, clipPath: `circle(150% at ${mascotClipOrigin})`, scale: 1 }}
+                exit={{ opacity: 0, clipPath: `circle(22px at ${mascotClipOrigin})`, scale: 0.985 }}
+                transition={{ duration: 1.02, ease: panelEase }}
                 style={{ backgroundColor: "#ffffff", color: "#18131f", colorScheme: "light", transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"

@@ -157,16 +157,25 @@ export function useMascotBrain(input: BrainInput) {
       const deltaY = target.y - yTarget.get();
       const distance = Math.hypot(deltaX, deltaY);
       lookXTarget.set(target.lookX); lookYTarget.set(target.lookY);
-      animate(rotateTarget, target.rotate, { type: "spring", stiffness: 76, damping: 17, mass: .82 });
-      // A short anticipatory lean is followed by a spring flight and an overshoot.
-      animate(xTarget, target.x, { type: "spring", stiffness: 42, damping: 14, mass: 1.16 });
-      animate(yTarget, target.y, { type: "spring", stiffness: 38, damping: 15, mass: 1.25 });
+      // First lean away from the destination. This tiny anticipation makes
+      // each trip read as a deliberate flight instead of a coordinate jump.
+      const startX = xTarget.get();
+      const startY = yTarget.get();
+      const anticipation = clamp(distance * .055, 3, 15);
+      animate(xTarget, startX - Math.sign(deltaX || 1) * anticipation, { duration: .12, ease: "easeOut" });
+      animate(yTarget, startY - Math.sign(deltaY || 1) * anticipation * .34, { duration: .12, ease: "easeOut" });
+      animate(rotateTarget, clamp(target.rotate + Math.sign(deltaX || 1) * 2.2, -9, 9), { duration: .12, ease: "easeOut" });
+      schedule(() => {
+        animate(rotateTarget, target.rotate, { type: "spring", stiffness: 76, damping: 17, mass: .82 });
+        animate(xTarget, target.x, { type: "spring", stiffness: 42, damping: 14, mass: 1.16 });
+        animate(yTarget, target.y, { type: "spring", stiffness: 38, damping: 15, mass: 1.25 });
+      }, 105);
       // Ghost-like squash and drag only while travelling. The effect is
       // deliberately subtle so the approved face stays recognisable.
       const flightAmount = clamp(distance / 300, 0, 1);
-      animate(stretchXTarget, 1 + flightAmount * .045, { duration: .16, ease: "easeOut" });
-      animate(stretchYTarget, 1 - flightAmount * .035, { duration: .16, ease: "easeOut" });
-      animate(skewTarget, clamp(-deltaX / 34, -3.5, 3.5), { duration: .16, ease: "easeOut" });
+      animate(stretchXTarget, 1 + flightAmount * .075, { duration: .18, ease: "easeOut" });
+      animate(stretchYTarget, 1 - flightAmount * .052, { duration: .18, ease: "easeOut" });
+      animate(skewTarget, clamp(-deltaX / 28, -5.2, 5.2), { duration: .18, ease: "easeOut" });
       animate(energyTarget, clamp(energyValue + distance / 340, 0, 1), { duration: .16, ease: "easeOut" });
       setBrain((current) => ({ ...current, behavior, attention, energy: clamp(energyValue + distance / 340, 0, 1) }));
       schedule(() => animate(energyTarget, energyValue, { type: "spring", stiffness: 108, damping: 16, mass: .65 }), clamp(480 + distance * 2.3, 520, 1250));
@@ -194,7 +203,9 @@ export function useMascotBrain(input: BrainInput) {
       lookXTarget.set(.15); lookYTarget.set(-.35);
       setBrain((current) => ({ ...current, behavior: "entering", attention: "destination", energy: .66, intensity: .72 }));
     }
-    const timer = window.setTimeout(() => setEntered(true), origin ? 520 : 0);
+    // Leave the home portrait long enough for the expanding portal to make
+    // the hand-off visible, then fly toward a meaningful chat target.
+    const timer = window.setTimeout(() => setEntered(true), origin ? 690 : 0);
     timers.current.push(timer);
     return clearTimers;
   }, [clearTimers, input.isOpen, input.origin, lookXTarget, lookYTarget, rotateTarget, xTarget, yTarget]);
@@ -205,11 +216,11 @@ export function useMascotBrain(input: BrainInput) {
     const stageCenterX = window.innerWidth / 2 - 21;
     lookXTarget.set(-.2); lookYTarget.set(.65);
     setBrain((current) => ({ ...current, behavior: "recovering", attention: "destination", energy: .72, intensity: .82 }));
-    animate(xTarget, input.origin.x - stageCenterX, { type: "spring", stiffness: 45, damping: 15, mass: 1.1 });
-    animate(yTarget, Math.max(8, input.origin.y - 44), { type: "spring", stiffness: 41, damping: 16, mass: 1.2 });
-    animate(rotateTarget, 6, { type: "spring", stiffness: 80, damping: 17 });
-    animate(stretchXTarget, 1.04, { duration: .15 }); animate(stretchYTarget, .965, { duration: .15 });
-    schedule(() => { animate(stretchXTarget, 1, { type: "spring", stiffness: 110, damping: 15 }); animate(stretchYTarget, 1, { type: "spring", stiffness: 110, damping: 15 }); }, 420);
+    animate(xTarget, input.origin.x - stageCenterX, { type: "spring", stiffness: 31, damping: 14, mass: 1.5 });
+    animate(yTarget, Math.max(8, input.origin.y - 44), { type: "spring", stiffness: 29, damping: 15, mass: 1.58 });
+    animate(rotateTarget, 6, { type: "spring", stiffness: 62, damping: 16, mass: 1.12 });
+    animate(stretchXTarget, 1.075, { duration: .2, ease: "easeOut" }); animate(stretchYTarget, .945, { duration: .2, ease: "easeOut" });
+    schedule(() => { animate(stretchXTarget, 1, { type: "spring", stiffness: 92, damping: 14, mass: .72 }); animate(stretchYTarget, 1, { type: "spring", stiffness: 92, damping: 14, mass: .72 }); }, 660);
     return clearTimers;
   }, [clearTimers, input.isOpen, input.isReturning, input.origin, lookXTarget, lookYTarget, rotateTarget, schedule, stretchXTarget, stretchYTarget, xTarget, yTarget]);
 
@@ -232,8 +243,12 @@ export function useMascotBrain(input: BrainInput) {
 
   useEffect(() => {
     clearTimers();
-    if (phase === "closed" || !visible || reducedMotion || input.isReturning || !entered) {
+    if (phase === "closed" || !visible || reducedMotion || input.isReturning) {
       setBrain({ emotion: "neutral", behavior: "resting", attention: "none", micro: "rest", energy: 0, intensity: 0 });
+      return clearTimers;
+    }
+    if (!entered) {
+      setBrain({ emotion: "curious", behavior: "entering", attention: "destination", micro: "observe", energy: .66, intensity: .72 });
       return clearTimers;
     }
     const apply = (emotion: MascotEmotion, behavior: MascotBehavior, attention: MascotAttention, micro: Micro, energyValue: number, zone: Zone, intensity = .6) => {
@@ -248,14 +263,14 @@ export function useMascotBrain(input: BrainInput) {
     };
     if (phase === "typing") { apply("curious", "approaching", "input", "listen", .58, "input", .72); return clearTimers; }
     if (phase === "listening") { apply("curious", "approaching", "input", "listen", .72, "input", .9); return clearTimers; }
-    if (phase === "sending") { apply("surprised", "observing", "user-message", "observe", .76, "message", .86); schedule(() => move("message", "observing", "user-message", .64), 360); return clearTimers; }
+    if (phase === "sending") { apply("surprised", "observing", "user-message", "observe", .76, "message", .86); schedule(() => move("message", "observing", "user-message", .64), 460); return clearTimers; }
     if (phase === "thinking") {
       apply("focused", "thinking", "upper-space", "ponder", .68, "upper-right", .84);
-      schedule(() => move("center", "thinking", "upper-space", .66), 760);
-      schedule(() => move("upper-left", "thinking", "upper-space", .63), 1590);
+      schedule(() => move("center", "thinking", "upper-space", .66), 920);
+      schedule(() => move("upper-left", "thinking", "upper-space", .63), 1880);
       return clearTimers;
     }
-    if (phase === "streaming") { apply("confident", "speaking", "response", "observe", .62, "response", .74); schedule(() => move("message", "speaking", "user-message", .58), 980); return clearTimers; }
+    if (phase === "streaming") { apply("confident", "speaking", "response", "observe", .62, "response", .74); schedule(() => move("message", "speaking", "user-message", .58), 1160); return clearTimers; }
     if (phase === "ready" || phase === "warning") { apply(phase === "ready" ? "confident" : "curious", "observing", phase === "warning" ? "options" : "response", "observe", .54, phase === "warning" ? "options" : "confirmation", .68); return clearTimers; }
     if (phase === "success") { apply("happy", "celebrating", "response", "observe", .95, "center", 1); schedule(() => apply("happy", "recovering", "none", "rest", .42, "rest", .46), 1200); return clearTimers; }
     if (phase === "error") { apply("frustrated", "recovering", "error", "rest", .7, "center", .9); schedule(() => apply("neutral", "recovering", "none", "rest", .32, "rest", .35), 1500); return clearTimers; }

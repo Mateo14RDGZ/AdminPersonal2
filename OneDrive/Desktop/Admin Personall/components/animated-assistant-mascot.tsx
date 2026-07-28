@@ -39,7 +39,19 @@ export function AnimatedAssistantMascot({
   return (
     <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`} data-behavior={brain.behavior} data-emotion={brain.emotion} data-mood={brain.mood} data-attention={brain.attention}>
       <motion.div className="assistant-mascot-particles" aria-hidden="true" style={{ opacity: brain.energy }} animate={brain.active ? { rotate: brain.behavior === "thinking" ? 360 : 0 } : { opacity: 0 }} transition={{ duration: brain.behavior === "thinking" ? 3.8 : .25, repeat: brain.behavior === "thinking" ? Infinity : 0, ease: "linear" }}><i /><i /><i /></motion.div>
-      <motion.div className="assistant-mascot-motion" style={{ x: brain.x, y: brain.y, rotate: brain.rotation }}>
+      <motion.div
+        className="assistant-mascot-motion"
+        style={{ x: brain.x, y: brain.y, rotate: brain.rotation }}
+        initial={false}
+        animate={reducedMotion
+          ? { opacity: 1, scale: 1 }
+          : isReturning
+            ? { opacity: [1, 1, .9], scale: [1, 1.055, .78] }
+            : brain.behavior === "entering"
+              ? { opacity: [0, 1, 1], scale: [.54, 1.11, 1] }
+              : { opacity: 1, scale: 1 }}
+        transition={{ duration: isReturning ? .92 : brain.behavior === "entering" ? .7 : .22, ease: "easeOut" }}
+      >
         <motion.div className="assistant-mascot-flight-shape" style={{ scaleX: brain.stretchX, scaleY: brain.stretchY, skewX: brain.flightSkew }}>
           <motion.i className="assistant-mascot-flight-aura" aria-hidden="true" style={{ opacity: brain.energy }} />
           <motion.div
