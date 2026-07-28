@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 
-export type PesadillaMood = "idle" | "thinking" | "listening" | "ready" | "success" | "cancelled";
+export type PesadillaMood = "idle" | "thinking" | "listening" | "ready" | "speaking" | "surprised" | "success" | "cancelled" | "error";
 
 type PesadillaAvatarProps = {
   size?: number;
@@ -21,7 +21,10 @@ function expressionFor(mood: PesadillaMood) {
   if (mood === "thinking") return { browY: -2, browRotate: -5, eyeScale: 1.06, mouth: "thinking" as const };
   if (mood === "listening") return { browY: -1, browRotate: -2, eyeScale: 1.16, mouth: "smile" as const };
   if (mood === "ready") return { browY: 1, browRotate: 4, eyeScale: 1.1, mouth: "smirk" as const };
+  if (mood === "speaking") return { browY: 0, browRotate: 2, eyeScale: 1.05, mouth: "open" as const };
+  if (mood === "surprised") return { browY: -6, browRotate: 0, eyeScale: 1.3, mouth: "open" as const };
   if (mood === "success") return { browY: -3, browRotate: -8, eyeScale: 0.7, mouth: "happy" as const };
+  if (mood === "error") return { browY: 5, browRotate: 10, eyeScale: 0.75, mouth: "frown" as const };
   if (mood === "cancelled") return { browY: 3, browRotate: 7, eyeScale: 0.78, mouth: "frown" as const };
   return { browY: 0, browRotate: 0, eyeScale: 1, mouth: "smirk" as const };
 }
@@ -47,8 +50,10 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle", look
         <motion.g data-part="particles" animate={active ? { opacity: [0.55, 1, 0.65], y: [0, -3, 0] } : { opacity: 0.72 }} transition={{ duration: 2.8, repeat: active ? Infinity : 0, ease: "easeInOut" }}>
           <path d="m31 65 5 9-5 9-5-9 5-9ZM167 58l5 9-5 9-5-9 5-9ZM177 118l4 7-4 7-4-7 4-7Z" fill="#BC4DFF" filter="url(#pesadilla-glow)" />
         </motion.g>
-        <motion.g data-part="outer-flame" animate={active ? { scaleY: [1, 1.035, .99, 1], rotate: [0, -1.4, 1, 0] } : { scaleY: 1 }} transition={{ duration: mood === "thinking" ? 1.35 : 3.4, repeat: active ? Infinity : 0, ease: "easeInOut" }} style={{ transformOrigin: "100px 118px" }}>
+        <motion.g data-part="outer-flame" animate={active ? { scaleY: [1, 1.055, .985, 1], scaleX: [1, .985, 1.02, 1], rotate: [0, -2.2, 1.7, 0] } : { scaleY: 1, scaleX: 1, rotate: 0 }} transition={{ duration: mood === "thinking" ? 1.15 : 2.9, repeat: active ? Infinity : 0, ease: "easeInOut" }} style={{ transformOrigin: "100px 118px" }}>
           <path d={flamePath} fill="url(#pesadilla-outer)" filter="url(#pesadilla-glow)" />
+        </motion.g>
+        <motion.g data-part="body" animate={active ? { y: [0, -1.4, .7, 0], rotate: [0, .8, -.7, 0], scaleY: [1, 1.018, .992, 1] } : { y: 0, rotate: 0, scaleY: 1 }} transition={{ duration: mood === "speaking" ? .72 : 2.35, repeat: active ? Infinity : 0, ease: "easeInOut" }} style={{ transformOrigin: "100px 124px" }}>
           <path d={bodyPath} fill="url(#pesadilla-body)" stroke="#5B1AA5" strokeWidth="2.5" />
         </motion.g>
         <motion.path data-part="inner-flame" d="M108 23c14 13 17 29 8 43-8 12-3 25 7 29-12 1-22-7-24-19-2-11 3-22 9-31 6-10 6-16 0-22Z" fill="#6D22C6" opacity=".42" animate={active ? { opacity: [.3, .62, .36], scaleY: [1, 1.08, 1] } : { opacity: .42 }} transition={{ duration: 2.1, repeat: active ? Infinity : 0, ease: "easeInOut" }} style={{ transformOrigin: "108px 62px" }} />
@@ -71,7 +76,7 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle", look
         </motion.g>
 
         <motion.g data-part="mouth" animate={{ y: mood === "success" ? -2 : 0, scaleX: mood === "success" ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 180, damping: 16 }} style={{ transformOrigin: "100px 158px" }}>
-          {expression.mouth === "frown" ? <path d="M76 169c14-12 34-12 48 0-14-4-34-4-48 0Z" fill="url(#pesadilla-mouth)" /> : expression.mouth === "thinking" ? <path d="M75 157c15 10 35 11 51-1-9 17-39 22-51 1Z" fill="url(#pesadilla-mouth)" /> : <path d="M70 151c18 13 43 13 60-3-8 27-45 34-60 3Z" fill="url(#pesadilla-mouth)" />}
+          {expression.mouth === "frown" ? <path d="M76 169c14-12 34-12 48 0-14-4-34-4-48 0Z" fill="url(#pesadilla-mouth)" /> : expression.mouth === "thinking" ? <path d="M75 157c15 10 35 11 51-1-9 17-39 22-51 1Z" fill="url(#pesadilla-mouth)" /> : expression.mouth === "open" ? <path d="M77 154c13 7 32 7 46-2-2 17-34 23-46 2Z" fill="#190A31" stroke="#B64BFF" strokeWidth="2" /> : <path d="M70 151c18 13 43 13 60-3-8 27-45 34-60 3Z" fill="url(#pesadilla-mouth)" />}
           <path data-part="tooth" d="m112 160 9-2-6 10-3-8Z" fill="#F7EFFF" />
         </motion.g>
       </svg>

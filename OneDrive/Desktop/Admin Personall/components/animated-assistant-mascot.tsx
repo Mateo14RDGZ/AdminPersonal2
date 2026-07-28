@@ -26,8 +26,10 @@ function toGhostMood(state: MascotState): PesadillaMood {
   if (state === "thinking" || state === "confused") return "thinking";
   if (state === "listening") return "listening";
   if (state === "success" || state === "happy") return "success";
-  if (state === "cancelled" || state === "error" || state === "warning") return "cancelled";
-  if (state === "speaking" || state === "surprised") return "ready";
+  if (state === "error") return "error";
+  if (state === "cancelled" || state === "warning") return "cancelled";
+  if (state === "speaking") return "speaking";
+  if (state === "surprised") return "surprised";
   return "idle";
 }
 
@@ -110,7 +112,7 @@ export function AnimatedAssistantMascot({
     let timeout = 0;
     const wander = () => {
       setDrift(chooseIdleDrift(isMobile, stageRef.current?.getBoundingClientRect(), fullScreen));
-      timeout = window.setTimeout(wander, 3600 + Math.round(Math.random() * 2600));
+      timeout = window.setTimeout(wander, fullScreen ? 2200 + Math.round(Math.random() * 2100) : 3600 + Math.round(Math.random() * 2600));
     };
     wander();
     return () => window.clearTimeout(timeout);
@@ -204,12 +206,13 @@ export function AnimatedAssistantMascot({
           y: activeDrift.y,
           rotate: activeDrift.rotate + look.lean,
           scale: activeDrift.scale * microScale,
+          skewX: activeDrift.rotate * 0.32,
         }}
-        transition={{ type: "spring", stiffness: 56, damping: 15, mass: 0.8 }}
+        transition={{ type: "spring", stiffness: fullScreen ? 42 : 56, damping: fullScreen ? 13 : 15, mass: fullScreen ? 1.05 : 0.8 }}
       >
         <motion.div
-          animate={reduceMotion ? { opacity: 1 } : error ? { x: [0, -5, 5, -3, 0], rotate: [0, -2, 2, 0] } : success ? { y: [0, -7, 0, -4, 0], scale: [1, 1.08, 1, 1.04, 1] } : speaking ? { y: [0, -2, 0], scaleY: [1, 1.025, 1] } : thinking ? { y: [0, -3, 0], rotate: [0, 1.8, 0] } : { y: [0, -4, 0], rotate: [0, 1, 0] }}
-          transition={reduceMotion ? { duration: 0.2 } : error ? { duration: 0.48 } : { duration: speaking ? 0.8 : 2.9, repeat: success || error ? 0 : Infinity, ease: "easeInOut" }}
+          animate={reduceMotion ? { opacity: 1 } : error ? { x: [0, -8, 8, -5, 0], rotate: [0, -4, 4, 0] } : success ? { y: [0, -12, 0, -7, 0], scale: [1, 1.12, .98, 1.06, 1] } : speaking ? { y: [0, -3, 0], scaleY: [1, 1.055, .99, 1], rotate: [0, 1.5, 0] } : thinking ? { y: [0, -5, 0], rotate: [0, 2.4, 0], scale: [1, 1.025, 1] } : { y: [0, -5, 0, -2, 0], rotate: [0, 1.5, -1, 0], scaleY: [1, 1.025, .99, 1] }}
+          transition={reduceMotion ? { duration: 0.2 } : error ? { duration: 0.58 } : { duration: speaking ? 0.7 : 2.35, repeat: success || error ? 0 : Infinity, ease: "easeInOut" }}
         >
           <PesadillaAvatar
             size={fullScreen ? (isMobile ? 104 : 128) : 76}
