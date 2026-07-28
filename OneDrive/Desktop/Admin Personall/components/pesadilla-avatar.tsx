@@ -28,42 +28,59 @@ function AnimatedFace({ mood, blink, lookX, lookY }: Pick<PesadillaAvatarProps, 
   const activeMood = mood ?? "idle";
   const fallbackLookX = useMotionValue(0);
   const fallbackLookY = useMotionValue(0);
-  const eyesX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-.65, Math.min(.65, value * .65)));
-  const eyesY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-.4, Math.min(.4, value * .4)));
-  const mouthKey = blink ? "blink" : activeMood;
-  const showAlternateMouth = ["thinking", "speaking", "surprised", "ready", "success", "cancelled", "error"].includes(activeMood);
+  const eyesX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-.8, Math.min(.8, value * .8)));
+  const eyesY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-.55, Math.min(.55, value * .55)));
+  const isError = activeMood === "error" || activeMood === "cancelled";
+  const isBright = activeMood === "success" || activeMood === "ready";
+  const eyeShape = activeMood === "listening"
+    ? { left: "M15 79Q28 69 41 80Q38 98 24 97Q16 92 15 79Z", right: "M59 80Q72 69 85 79Q84 92 76 97Q62 98 59 80Z" }
+    : activeMood === "thinking"
+      ? { left: "M15 82Q27 76 41 82Q36 97 23 94Q17 90 15 82Z", right: "M59 81Q73 74 85 80Q83 94 70 95Q61 93 59 81Z" }
+      : isError
+        ? { left: "M16 84Q28 78 41 85Q36 93 24 91Q18 90 16 84Z", right: "M59 85Q73 78 84 84Q82 91 70 92Q62 92 59 85Z" }
+        : { left: "M15 81Q28 72 42 82Q37 98 23 95Q16 91 15 81Z", right: "M58 82Q72 72 85 80Q84 91 76 96Q62 98 58 82Z" };
+  const brow = activeMood === "thinking"
+    ? { left: "M14 75Q27 62 43 73", right: "M58 73Q71 64 86 72" }
+    : activeMood === "listening"
+      ? { left: "M14 76Q28 66 42 75", right: "M58 75Q72 66 86 76" }
+      : activeMood === "surprised"
+        ? { left: "M15 73Q28 61 42 72", right: "M58 72Q72 61 86 73" }
+        : isError
+          ? { left: "M14 78Q28 68 43 79", right: "M57 79Q72 68 86 77" }
+          : { left: "M14 76Q27 65 43 75", right: "M57 75Q72 65 86 76" };
 
   return (
     <motion.svg className="pesadilla-face-overlay" viewBox="0 0 100 138" aria-hidden="true" style={{ x: eyesX, y: eyesY }}>
-      <motion.g
-        animate={blink ? { scaleY: 0.08, y: 5 } : activeMood === "listening" ? { scaleY: 1.1, y: -1 } : { scaleY: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        style={{ transformOrigin: "50px 84px" }}
-      >
-        <motion.ellipse cx="26" cy="84" rx="3.5" ry="5.6" fill="#160724" opacity={activeMood === "idle" ? 0 : .78} />
-        <motion.ellipse cx="67" cy="84" rx="3.5" ry="5.6" fill="#160724" opacity={activeMood === "idle" ? 0 : .78} />
-        {activeMood !== "idle" ? <>
-          <motion.circle cx="25" cy="82.5" r="1.15" fill="#fff" opacity=".92" />
-          <motion.circle cx="66" cy="82.5" r="1.15" fill="#fff" opacity=".92" />
-        </> : null}
-      </motion.g>
       <AnimatePresence mode="wait">
-        {activeMood === "listening" ? <motion.g key="listening-eyes" initial={{ opacity: 0, scale: .76 }} animate={{ opacity: .95, scale: 1 }} exit={{ opacity: 0 }} style={{ transformOrigin: "50px 84px" }}><ellipse cx="26" cy="84" rx="6.7" ry="8.2" fill="#9f2fff" opacity=".36" /><ellipse cx="67" cy="84" rx="6.7" ry="8.2" fill="#9f2fff" opacity=".36" /><circle cx="26" cy="84" r="3.5" fill="#10051b" /><circle cx="67" cy="84" r="3.5" fill="#10051b" /><circle cx="24.5" cy="81.8" r="1.45" fill="#fff" /><circle cx="65.5" cy="81.8" r="1.45" fill="#fff" /></motion.g> : null}
-        {activeMood === "thinking" ? <motion.g key="thinking-eyes" initial={{ opacity: 0, y: 3 }} animate={{ opacity: .95, y: 0 }} exit={{ opacity: 0 }}><ellipse cx="25" cy="83" rx="5.8" ry="6.8" fill="#7d1ee8" opacity=".42" /><ellipse cx="68" cy="82" rx="5.8" ry="6.8" fill="#7d1ee8" opacity=".42" /><circle cx="23.8" cy="84.5" r="3.2" fill="#12051e" /><circle cx="69.2" cy="80.5" r="3.2" fill="#12051e" /></motion.g> : null}
-        {activeMood === "ready" ? <motion.g key="ready-eyes" initial={{ opacity: 0, scale: .7 }} animate={{ opacity: .96, scale: 1 }} exit={{ opacity: 0 }} style={{ transformOrigin: "50px 84px" }}><ellipse cx="26" cy="84" rx="5.7" ry="6.4" fill="#b54dff" opacity=".38" /><ellipse cx="67" cy="84" rx="5.7" ry="6.4" fill="#b54dff" opacity=".38" /><path d="M22 82l2 2 4-5" fill="none" stroke="#fff" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" /><path d="M63 82l2 2 4-5" fill="none" stroke="#fff" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" /></motion.g> : null}
-        {activeMood === "success" ? <motion.g key="success-eyes" initial={{ opacity: 0, scale: .7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M18 82Q26 90 35 82M59 82Q68 90 77 82" fill="none" stroke="#f3d8ff" strokeWidth="2.2" strokeLinecap="round" /><circle cx="17" cy="73" r="1.7" fill="#df9cff" /><circle cx="82" cy="73" r="1.7" fill="#df9cff" /></motion.g> : null}
-        {activeMood === "cancelled" || activeMood === "error" ? <motion.g key="error-eyes" initial={{ opacity: 0, x: -4 }} animate={{ opacity: .94, x: 0 }} exit={{ opacity: 0 }}><path d="M21 80l8 8m0-8-8 8M62 80l8 8m0-8-8 8" stroke="#e083ff" strokeWidth="2" strokeLinecap="round" opacity=".8" /></motion.g> : null}
+        {blink ? (
+          <motion.g key="blink" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <path d="M16 83Q28 91 41 82M59 82Q72 91 84 82" fill="none" stroke="#17091f" strokeWidth="4.1" strokeLinecap="round" />
+          </motion.g>
+        ) : activeMood !== "idle" ? (
+          <motion.g key={activeMood} initial={{ opacity: 0, scale: .82, y: 2 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: .92, y: -1 }} transition={{ type: "spring", stiffness: 260, damping: 22 }} style={{ transformOrigin: "50px 87px" }}>
+            <path d={eyeShape.left} fill="#1a0829" opacity=".96" />
+            <path d={eyeShape.right} fill="#1a0829" opacity=".96" />
+            <path d={eyeShape.left} fill="none" stroke="#b94cff" strokeWidth="1.4" opacity={isError ? .35 : .82} />
+            <path d={eyeShape.right} fill="none" stroke="#b94cff" strokeWidth="1.4" opacity={isError ? .35 : .82} />
+            <motion.g animate={activeMood === "thinking" ? { x: [-1.5, 1.5, -.5], y: [1, -1.5, 1] } : activeMood === "speaking" ? { y: [0, -.7, 0] } : { x: 0, y: 0 }} transition={{ duration: activeMood === "thinking" ? 1.45 : .7, repeat: activeMood === "thinking" || activeMood === "speaking" ? Infinity : 0, ease: "easeInOut" }}>
+              <ellipse cx={activeMood === "thinking" ? "25" : "27"} cy={activeMood === "listening" ? "85" : "86"} rx={activeMood === "listening" ? "4.6" : "4"} ry={activeMood === "surprised" ? "5.2" : "5"} fill="#13051d" />
+              <ellipse cx={activeMood === "thinking" ? "72" : "72"} cy={activeMood === "thinking" ? "82" : activeMood === "listening" ? "85" : "86"} rx={activeMood === "listening" ? "4.6" : "4"} ry={activeMood === "surprised" ? "5.2" : "5"} fill="#13051d" />
+              <circle cx={activeMood === "thinking" ? "23.5" : "25.5"} cy={activeMood === "thinking" ? "82.5" : "82.5"} r="1.55" fill="#fff" />
+              <circle cx={activeMood === "thinking" ? "70.5" : "70.5"} cy={activeMood === "thinking" ? "78.5" : "82.5"} r="1.55" fill="#fff" />
+            </motion.g>
+            <path d={brow.left} fill="none" stroke="#17091f" strokeWidth="4.25" strokeLinecap="round" />
+            <path d={brow.right} fill="none" stroke="#17091f" strokeWidth="4.25" strokeLinecap="round" />
+            {activeMood === "thinking" ? <path d="M42 105Q50 108 58 103" fill="none" stroke="#bf57ff" strokeWidth="2.8" strokeLinecap="round" /> : null}
+            {activeMood === "listening" ? <path d="M42 104Q50 107 58 104" fill="none" stroke="#ca70ff" strokeWidth="2.5" strokeLinecap="round" /> : null}
+            {activeMood === "ready" ? <path d="M35 102Q50 116 65 102Q50 119 35 102Z" fill="#b844ff" stroke="#17091f" strokeWidth="2" /> : null}
+            {activeMood === "success" ? <><path d="M18 85Q28 94 39 85M61 85Q72 94 82 85" fill="none" stroke="#f1cfff" strokeWidth="2.6" strokeLinecap="round" /><path d="M34 102Q50 120 66 102Q50 123 34 102Z" fill="#c45dff" stroke="#17091f" strokeWidth="2" /><path d="M55 105l4 5-5 1" fill="#fff" /></> : null}
+            {activeMood === "surprised" ? <ellipse cx="50" cy="106" rx="6.3" ry="7.5" fill="#180723" stroke="#c961ff" strokeWidth="1.9" /> : null}
+            {activeMood === "speaking" ? <motion.path d="M35 103Q50 115 65 103Q50 121 35 103Z" fill="#190722" stroke="#c55aff" strokeWidth="1.7" animate={{ scaleY: [.72, 1.18, .86, 1.1, .75] }} transition={{ duration: .82, repeat: Infinity, ease: "easeInOut" }} style={{ transformOrigin: "50px 108px" }} /> : null}
+            {isError ? <path d="M40 113Q50 102 61 113" fill="none" stroke="#e3a3ff" strokeWidth="3.1" strokeLinecap="round" /> : null}
+            {isBright ? <motion.g animate={{ opacity: [.25, 1, .25], scale: [.72, 1.12, .72] }} transition={{ duration: 1.15, repeat: Infinity, ease: "easeInOut" }} style={{ transformOrigin: "50px 84px" }}><circle cx="17" cy="72" r="1.55" fill="#e9b7ff" /><circle cx="84" cy="72" r="1.55" fill="#e9b7ff" /></motion.g> : null}
+          </motion.g>
+        ) : null}
       </AnimatePresence>
-      <AnimatePresence mode="wait">
-        {activeMood === "thinking" ? <motion.g key="thinking" initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><path d="M15 70Q26 60 39 69" fill="none" stroke="#c66cff" strokeWidth="3.1" strokeLinecap="round" /><path d="M61 72Q72 66 83 73" fill="none" stroke="#321044" strokeWidth="3.6" strokeLinecap="round" /><path d="M43 101Q50 104 57 101" fill="none" stroke="#b956ff" strokeWidth="3.2" strokeLinecap="round" /></motion.g> : null}
-        {activeMood === "listening" ? <motion.g key="listening" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M16 72Q27 65 38 72" fill="none" stroke="#1d0a2d" strokeWidth="3.5" strokeLinecap="round" /><path d="M61 72Q73 65 84 72" fill="none" stroke="#1d0a2d" strokeWidth="3.5" strokeLinecap="round" /></motion.g> : null}
-        {activeMood === "ready" ? <motion.g key="ready" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><path d="M15 71Q27 62 39 70M61 70Q74 62 85 71" fill="none" stroke="#180827" strokeWidth="3.8" strokeLinecap="round" /><path d="M37 99Q50 108 63 99Q50 115 37 99Z" fill="#b94cff" stroke="#210936" strokeWidth="1.5" /><path d="M50 101l3 4-4 1" fill="#fff" opacity=".92" /></motion.g> : null}
-        {activeMood === "surprised" ? <motion.g key="surprised" initial={{ opacity: 0, scale: .7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M15 70Q27 61 39 69M61 69Q73 61 85 70" fill="none" stroke="#20112e" strokeWidth="3.5" strokeLinecap="round" /><ellipse cx="50" cy="102" rx="5.8" ry="7" fill="#170722" stroke="#bb4dff" strokeWidth="1.6" /></motion.g> : null}
-        {activeMood === "success" ? <motion.g key="success" initial={{ opacity: 0, scale: .74 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M18 76Q27 84 36 76M64 76Q73 84 82 76" fill="none" stroke="#1a0829" strokeWidth="4" strokeLinecap="round" /><path d="M35 98Q50 113 65 98Q50 119 35 98Z" fill="#bc4dff" stroke="#210936" strokeWidth="1.7" /></motion.g> : null}
-        {activeMood === "error" || activeMood === "cancelled" ? <motion.g key="error" initial={{ opacity: 0, x: -3 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}><path d="M15 76Q27 68 38 75M62 75Q73 68 85 76" fill="none" stroke="#7c1fae" strokeWidth="3.6" strokeLinecap="round" /><path d="M39 108Q50 96 61 108" fill="none" stroke="#e290ff" strokeWidth="3.4" strokeLinecap="round" /></motion.g> : null}
-        {activeMood === "speaking" ? <motion.g key="speaking" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><motion.path d="M36 99Q50 110 64 99Q50 116 36 99Z" fill="#160720" stroke="#bf57ff" strokeWidth="1.5" animate={{ scaleY: [.76, 1.15, .9, 1.1, .8] }} transition={{ duration: .76, repeat: Infinity, ease: "easeInOut" }} style={{ transformOrigin: "50px 104px" }} /></motion.g> : null}
-      </AnimatePresence>
-      {showAlternateMouth ? <motion.path key={mouthKey} d="M40 99Q50 105 60 99" fill="none" stroke="#0c0414" strokeWidth="2" opacity=".55" /> : null}
     </motion.svg>
   );
 }

@@ -80,17 +80,13 @@ export function AnimatedAssistantMascot({
   const xTarget = useMotionValue(0);
   const yTarget = useMotionValue(0);
   const rotateTarget = useMotionValue(0);
-  const stretchXTarget = useMotionValue(1);
-  const stretchYTarget = useMotionValue(1);
-  const skewTarget = useMotionValue(0);
+  const flightEnergy = useMotionValue(0);
   const lookX = useMotionValue(0);
   const lookY = useMotionValue(0);
   const x = useSpring(xTarget, { stiffness: 42, damping: 15, mass: 1.08 });
   const y = useSpring(yTarget, { stiffness: 38, damping: 16, mass: 1.2 });
   const rotation = useSpring(rotateTarget, { stiffness: 70, damping: 16, mass: .85 });
-  const stretchX = useSpring(stretchXTarget, { stiffness: 120, damping: 16, mass: .54 });
-  const stretchY = useSpring(stretchYTarget, { stiffness: 110, damping: 17, mass: .58 });
-  const flightSkew = useSpring(skewTarget, { stiffness: 130, damping: 17, mass: .45 });
+  const energy = useSpring(flightEnergy, { stiffness: 120, damping: 17, mass: .55 });
   const pupilX = useSpring(lookX, { stiffness: 210, damping: 22, mass: .3 });
   const pupilY = useSpring(lookY, { stiffness: 210, damping: 22, mass: .3 });
 
@@ -128,17 +124,13 @@ export function AnimatedAssistantMascot({
     animate(xTarget, target.x, { type: "spring", stiffness: 44, damping: 15, mass: 1.12 });
     animate(yTarget, target.y, { type: "spring", stiffness: 40, damping: 16, mass: 1.26 });
     animate(rotateTarget, target.rotate, { type: "spring", stiffness: 72, damping: 16, mass: .82 });
-    // The supplied character artwork has a detailed face. Keep its aspect
-    // ratio intact while flying; posture comes from direction and rotation.
-    animate(stretchXTarget, 1, { type: "spring", stiffness: 155, damping: 15, mass: .36 });
-    animate(stretchYTarget, 1, { type: "spring", stiffness: 145, damping: 16, mass: .38 });
-    animate(skewTarget, 0, { type: "spring", stiffness: 150, damping: 15, mass: .36 });
+    // The face artwork must never squash. The feeling of propulsion comes
+    // from the trailing aura and the lean, while the character stays intact.
+    animate(flightEnergy, Math.min(1, distance / 150), { duration: .18, ease: "easeOut" });
     schedule(() => {
-      animate(stretchXTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
-      animate(stretchYTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
-      animate(skewTarget, 0, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
+      animate(flightEnergy, 0, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
     }, Math.min(960, Math.max(420, 360 + distance * 2.1)));
-  }, [keyboardOpen, lookX, lookY, rotateTarget, schedule, skewTarget, stretchXTarget, stretchYTarget, xTarget, yTarget]);
+  }, [flightEnergy, keyboardOpen, lookX, lookY, rotateTarget, schedule, xTarget, yTarget]);
 
   useEffect(() => {
     const refresh = () => {
@@ -242,11 +234,12 @@ export function AnimatedAssistantMascot({
   }, [active, isMobile, lookX, lookY]);
 
   return (
-    <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`} data-behavior={behavior} data-emotion={emotion}>
+    <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`} data-behavior={behavior} data-emotion={emotion} data-mood={mascotMood}>
       <motion.div className="assistant-mascot-particles" aria-hidden="true" animate={active ? { opacity: chatState === "thinking" ? 1 : .68, rotate: chatState === "thinking" ? 360 : 0 } : { opacity: 0 }} transition={{ duration: chatState === "thinking" ? 4.8 : .3, repeat: chatState === "thinking" ? Infinity : 0, ease: "linear" }}><i /><i /><i /></motion.div>
       <motion.div className="assistant-mascot-motion" style={{ x, y, rotate: rotation }}>
-        <motion.div className="assistant-mascot-flight-shape" style={{ scaleX: stretchX, scaleY: stretchY, skewX: flightSkew }}>
-          <motion.div animate={reducedMotion ? { opacity: 1 } : mascotMood === "error" || mascotMood === "cancelled" ? { x: [0, -7, 8, -4, 0], scale: [1, .9, 1.03, 1] } : mascotMood === "success" ? { y: [0, -12, 0, -7, 0], scale: [1, 1.11, .98, 1.05, 1] } : mascotMood === "thinking" ? { y: [0, -2, -6, -2, 0], rotate: [0, -2, 1, 0], scaleX: [1, .96, 1.025, 1] } : mascotMood === "listening" ? { y: [0, -3, 0], rotate: [0, 2, 0], scaleY: [1, 1.055, 1] } : mascotMood === "ready" ? { y: [0, -4, 0], scale: [1, 1.045, 1] } : mascotMood === "speaking" ? { y: [0, -3, 0], scaleY: [1, 1.05, .99, 1] } : { y: [0, -5, 0, -2, 0], scaleY: [1, 1.025, .99, 1] }} transition={{ duration: mascotMood === "speaking" ? .72 : mascotMood === "thinking" ? 1.28 : 2.25, repeat: ["success", "error", "cancelled"].includes(mascotMood) || reducedMotion ? 0 : Infinity, ease: "easeInOut" }}>
+        <motion.div className="assistant-mascot-flight-shape">
+          <motion.i className="assistant-mascot-flight-aura" aria-hidden="true" style={{ opacity: energy }} />
+          <motion.div animate={reducedMotion ? { opacity: 1 } : mascotMood === "error" || mascotMood === "cancelled" ? { x: [0, -7, 8, -4, 0], scale: [1, .94, 1.03, 1] } : mascotMood === "success" ? { y: [0, -14, 0, -8, 0], rotate: [0, -6, 6, 0], scale: [1, 1.1, .99, 1.045, 1] } : mascotMood === "thinking" ? { y: [0, -3, -7, -3, 0], rotate: [0, -2.5, 1.5, 0], scale: [1, .995, 1.01, 1] } : mascotMood === "listening" ? { y: [0, -3, 0], rotate: [0, 2.5, 0], scale: [1, 1.025, 1] } : mascotMood === "ready" ? { y: [0, -5, 0], scale: [1, 1.04, 1] } : mascotMood === "speaking" ? { y: [0, -4, 0, -2, 0], rotate: [0, 1.5, -1, 0], scale: [1, 1.018, .995, 1] } : { y: [0, -5, 0, -2, 0], rotate: [0, .85, -.65, 0], scale: [1, 1.018, .995, 1] }} transition={{ duration: mascotMood === "speaking" ? .84 : mascotMood === "thinking" ? 1.42 : 2.45, repeat: ["success", "error", "cancelled"].includes(mascotMood) || reducedMotion ? 0 : Infinity, ease: "easeInOut" }}>
             <PesadillaAvatar size={fullScreen ? (isMobile ? 96 : 108) : 64} active={active} mood={mascotMood} blink={blink} lookX={pupilX} lookY={pupilY} />
           </motion.div>
         </motion.div>

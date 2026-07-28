@@ -285,7 +285,26 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     will-change: transform;
     transform-origin: 50% 54%;
   }
-  .assistant-mascot-flight-shape { transform-origin: 50% 54%; will-change: transform; }
+  .assistant-mascot-flight-shape { position: relative; transform-origin: 50% 54%; will-change: transform; }
+  .assistant-mascot-flight-aura {
+    position: absolute;
+    z-index: -1;
+    top: 27%;
+    left: -22%;
+    width: 128%;
+    height: 55%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 68% 50%, rgba(204, 107, 255, .38), rgba(128, 44, 224, .14) 42%, transparent 73%);
+    filter: blur(7px);
+    transform: translate3d(-9px, 0, 0) scaleX(1.18);
+    will-change: opacity, transform;
+  }
+  .assistant-mascot-stage[data-mood="thinking"] .pesadilla-avatar-art img { filter: drop-shadow(0 9px 14px rgba(113, 42, 220, .68)) saturate(1.13); }
+  .assistant-mascot-stage[data-mood="listening"] .pesadilla-avatar-art img { filter: drop-shadow(0 9px 14px rgba(172, 74, 255, .68)) saturate(1.15); }
+  .assistant-mascot-stage[data-mood="success"] .pesadilla-avatar-art img,
+  .assistant-mascot-stage[data-mood="ready"] .pesadilla-avatar-art img { filter: drop-shadow(0 10px 16px rgba(205, 102, 255, .82)) saturate(1.22); }
+  .assistant-mascot-stage[data-mood="error"] .pesadilla-avatar-art img,
+  .assistant-mascot-stage[data-mood="cancelled"] .pesadilla-avatar-art img { filter: drop-shadow(0 7px 10px rgba(116, 46, 145, .38)) saturate(.76); }
   .assistant-mascot-stage-full .assistant-mascot-motion {
     top: 0;
     left: calc(50% - 64px);
