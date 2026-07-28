@@ -8,6 +8,7 @@ import { loadAccounts } from "@/lib/accounts-client";
 import type { Account } from "@/lib/database.types";
 import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
 import { AnimatedAssistantMascot, type MascotState } from "@/components/animated-assistant-mascot";
+import type { MascotIntent } from "@/components/use-mascot-brain";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -54,6 +55,7 @@ export function MoneyChat({ onRegistered }: Props) {
   const [inputFocused, setInputFocused] = useState(false);
   const [, setScrollTick] = useState(0);
   const [responsePulse, setResponsePulse] = useState(false);
+  const [mascotIntent, setMascotIntent] = useState<MascotIntent | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const sendBurstTimerRef = useRef<number | null>(null);
@@ -108,6 +110,7 @@ export function MoneyChat({ onRegistered }: Props) {
     setConversationActive(true);
     setText("");
     setReaction(null);
+    setMascotIntent(null);
     setHasAssistantError(false);
     setSendBurst(true);
     if (sendBurstTimerRef.current) window.clearTimeout(sendBurstTimerRef.current);
@@ -126,6 +129,9 @@ export function MoneyChat({ onRegistered }: Props) {
         return;
       }
       const nextPlan = data.plan as Plan;
+      // Optional assistant metadata is only an emotional suggestion. The
+      // local Mascot Brain validates it and always keeps control of movement.
+      setMascotIntent(data?.mascot ?? data?.mascotIntent ?? null);
       setResponsePulse(true);
       if (responsePulseTimerRef.current) window.clearTimeout(responsePulseTimerRef.current);
       responsePulseTimerRef.current = window.setTimeout(() => setResponsePulse(false), 900);
@@ -326,7 +332,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"
               >
-                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} fullScreen />
+                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} aiIntent={mascotIntent} fullScreen />
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative z-10 border-b border-[var(--color-border)] pt-[max(.45rem,env(safe-area-inset-top))]">
                   <div className="flex items-center gap-3 px-4 pb-4">
                     <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
