@@ -3,9 +3,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconSparkles, IconX } from "@tabler/icons-react";
+import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconX } from "@tabler/icons-react";
 import { loadAccounts } from "@/lib/accounts-client";
 import type { Account } from "@/lib/database.types";
+import { PesadillaAvatar } from "@/components/pesadilla-avatar";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -222,8 +223,8 @@ export function MoneyChat({ onRegistered }: Props) {
       <section className="assistant-card app-card overflow-hidden">
         <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
         <div className="relative flex items-center gap-3 px-4 py-4">
-          <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"><IconSparkles size={21} stroke={2.2} /></span>
-          <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Contame qué querés hacer; te propongo todo listo para confirmar.</p></div>
+          <PesadillaAvatar />
+          <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Pesadilla</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero. Contame qué querés hacer.</p></div>
           <IconMessageCircle className="text-[var(--color-muted)]" size={20} />
         </div>
         {composer(false)}
@@ -242,11 +243,11 @@ export function MoneyChat({ onRegistered }: Props) {
                 style={{ transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Asistente financiero"
+                aria-label="Pesadilla, asistente financiero"
               >
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
-                  <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"><IconSparkles size={21} stroke={2.2} /></span>
-                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Asistente financiero</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Entiendo lenguaje cotidiano y preparo el cambio antes de guardarlo.</p></div>
+                  <PesadillaAvatar active />
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
                   <button type="button" onClick={closeConversation} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>

@@ -216,7 +216,19 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
     transform: translateZ(0);
   }
 
-  .assistant-avatar { background: linear-gradient(145deg, #e98a5d, #bd4e2e); box-shadow: 0 10px 24px -10px rgba(202, 83, 43, .55); }
+  .pesadilla-avatar {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    color: #4d3a68;
+    background: linear-gradient(145deg, #cbb7ff, #8f74d6);
+    box-shadow: 0 11px 24px -12px rgba(66, 44, 109, .68), inset 0 1px 1px rgba(255,255,255,.48);
+    transform: translateZ(0);
+  }
+  .pesadilla-avatar svg { width: 84%; height: 84%; filter: drop-shadow(0 3px 3px rgba(33, 19, 56, .18)); }
+  .pesadilla-avatar-active { animation: pesadilla-float 2.6s cubic-bezier(.42, 0, .58, 1) infinite; }
   .liquid-nav {
     position: relative;
     overflow: hidden;
@@ -348,6 +360,11 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
 @keyframes chat-rise {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pesadilla-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-2deg); }
+  50% { transform: translate3d(0, -3px, 0) rotate(2deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
