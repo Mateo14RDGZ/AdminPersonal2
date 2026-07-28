@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/api-auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { quickTransactionSchema } from "@/lib/validation";
 import { databaseTransactionSource } from "@/lib/database-source";
-import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
+import { verifySavedTransactionAccount } from "@/lib/account-balance-reconciliation";
 
 export async function POST(request: NextRequest) {
   const parsed = quickTransactionSchema.safeParse(await request.json());
@@ -78,9 +78,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   try {
-    await reconcileUserAccountBalances(service, userId);
+    await verifySavedTransactionAccount(service, userId, data, parsed.data.account_id);
   } catch (reconciliationError) {
-    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "El movimiento se guardó, pero no se pudo actualizar el saldo." }, { status: 500 });
+    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "El movimiento no se pudo verificar en la cuenta." }, { status: 500 });
   }
   return NextResponse.json({ success: true, transaction: data });
 }

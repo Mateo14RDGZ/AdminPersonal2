@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type AccountRow = { id: string; initial_balance: number | string; current_balance: number | string };
 type TransactionRow = { type: string; amount: number | string; account_id: string | null; destination_account_id: string | null; status: string };
+type SavedTransaction = { id?: string | null; type: string; amount: number | string; status: string; account_id: string | null; destination_account_id: string | null };
 
 /**
  * Makes account balances a deterministic projection of confirmed history.
@@ -45,4 +46,31 @@ export async function reconcileUserAccountBalances(supabase: SupabaseClient, use
   const failed = results.find((result) => result.error);
   if (failed?.error) throw new Error(failed.error.message);
   return balanceByAccount;
+}
+
+/** Fails closed: only report success when the account link and balance are real. */
+export async function verifySavedTransactionAccount(
+  supabase: SupabaseClient,
+  userId: string,
+  transaction: SavedTransaction,
+  expectedAccountId: string
+) {
+  if (!transaction.id || transaction.status !== "CONFIRMED" || transaction.account_id !== expectedAccountId) {
+    throw new Error("El movimiento no quedó asociado a la cuenta elegida.");
+  }
+  const expectedBalances = await reconcileUserAccountBalances(supabase, userId);
+  const accountIds = [transaction.account_id, transaction.destination_account_id].filter((id): id is string => Boolean(id));
+  const { data: accounts, error } = await supabase
+    .from("accounts")
+    .select("id,current_balance")
+    .eq("user_id", userId)
+    .in("id", accountIds);
+  if (error) throw new Error(error.message);
+  if ((accounts ?? []).length !== accountIds.length) throw new Error("La cuenta elegida ya no está disponible.");
+  for (const account of accounts ?? []) {
+    const expected = Math.round((expectedBalances.get(account.id) ?? Number.NaN) * 100) / 100;
+    if (!Number.isFinite(expected) || Math.abs(Number(account.current_balance) - expected) >= 0.005) {
+      throw new Error("No se pudo aplicar el movimiento al saldo de la cuenta.");
+    }
+  }
 }
