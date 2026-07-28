@@ -326,10 +326,6 @@ export function MoneyChat({ onRegistered }: Props) {
     </form>
   );
 
-  const mascotClipOrigin = mascotOrigin
-    ? `${Math.round(mascotOrigin.x)}px ${Math.round(mascotOrigin.y)}px`
-    : "50% 93%";
-
   return (
     <>
       <section className="assistant-card app-card overflow-hidden">
@@ -348,10 +344,10 @@ export function MoneyChat({ onRegistered }: Props) {
             {conversationActive ? (
               <motion.section
                 className="assistant-conversation fixed inset-0 z-[80] flex flex-col overflow-hidden bg-white text-[#18131f]"
-                initial={{ opacity: 0, clipPath: `circle(22px at ${mascotClipOrigin})`, scale: 0.985 }}
-                animate={{ opacity: 1, clipPath: `circle(150% at ${mascotClipOrigin})`, scale: 1 }}
-                exit={{ opacity: 0, clipPath: `circle(22px at ${mascotClipOrigin})`, scale: 0.985 }}
-                transition={{ duration: 1.02, ease: panelEase }}
+                initial={{ opacity: 0, y: 14, scale: 0.996 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.996 }}
+                transition={{ duration: 0.62, ease: panelEase }}
                 style={{ backgroundColor: "#ffffff", color: "#18131f", colorScheme: "light", transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"

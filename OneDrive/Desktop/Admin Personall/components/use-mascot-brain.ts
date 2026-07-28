@@ -197,18 +197,30 @@ export function useMascotBrain(input: BrainInput) {
     const origin = input.origin;
     if (origin) {
       const stageCenterX = window.innerWidth / 2 - 21;
-      xTarget.set(origin.x - stageCenterX);
-      yTarget.set(Math.max(8, origin.y - 44));
+      const homeX = origin.x - stageCenterX;
+      const homeY = Math.max(8, origin.y - 44);
+      xTarget.set(homeX);
+      yTarget.set(homeY);
       rotateTarget.set(-7);
       lookXTarget.set(.15); lookYTarget.set(-.35);
       setBrain((current) => ({ ...current, behavior: "entering", attention: "destination", energy: .66, intensity: .72 }));
+      // A gentle lift gives Pesadilla a clear take-off moment before it
+      // chooses a chat destination. It is intentionally not a page-wide
+      // zoom or a sudden coordinate jump.
+      const liftTimer = window.setTimeout(() => {
+        animate(yTarget, homeY - 26, { type: "spring", stiffness: 92, damping: 15, mass: .72 });
+        animate(xTarget, homeX + 5, { type: "spring", stiffness: 85, damping: 16, mass: .68 });
+        animate(rotateTarget, 2.5, { type: "spring", stiffness: 96, damping: 17, mass: .62 });
+        animate(stretchXTarget, .94, { duration: .16, ease: "easeOut" });
+        animate(stretchYTarget, 1.065, { duration: .16, ease: "easeOut" });
+      }, 155);
+      timers.current.push(liftTimer);
     }
-    // Leave the home portrait long enough for the expanding portal to make
-    // the hand-off visible, then fly toward a meaningful chat target.
-    const timer = window.setTimeout(() => setEntered(true), origin ? 690 : 0);
+    // Let the take-off complete before the Brain assigns the first target.
+    const timer = window.setTimeout(() => setEntered(true), origin ? 540 : 0);
     timers.current.push(timer);
     return clearTimers;
-  }, [clearTimers, input.isOpen, input.origin, lookXTarget, lookYTarget, rotateTarget, xTarget, yTarget]);
+  }, [clearTimers, input.isOpen, input.origin, lookXTarget, lookYTarget, rotateTarget, stretchXTarget, stretchYTarget, xTarget, yTarget]);
 
   useEffect(() => {
     if (!input.isReturning || !input.origin || !input.isOpen) return;
