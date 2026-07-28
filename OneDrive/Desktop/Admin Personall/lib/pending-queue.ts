@@ -3,7 +3,7 @@ export type PendingTransaction = {
   type?: string;
   amount: number;
   currency?: string;
-  account_id?: string | null;
+  account_id: string;
   destination_account_id?: string | null;
   category_id: string | null;
   merchant?: string | null;
@@ -46,6 +46,10 @@ export async function flushPending(
   const list = getPending();
   let synced = 0;
   for (const item of list) {
+    if (!item.account_id) {
+      removePending(item.id);
+      continue;
+    }
     const res = await post({
       amount: item.amount,
       type: item.type,

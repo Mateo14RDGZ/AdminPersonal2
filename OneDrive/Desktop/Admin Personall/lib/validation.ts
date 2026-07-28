@@ -41,7 +41,7 @@ export const createTransactionSchema = z.object({
   type: transactionTypeSchema.default("EXPENSE"),
   amount: z.coerce.number().positive(),
   currency: currencySchema.default("UYU"),
-  account_id: z.string().uuid().optional().nullable(),
+  account_id: z.string().uuid(),
   destination_account_id: z.string().uuid().optional().nullable(),
   credit_card_id: z.string().uuid().optional().nullable(),
   merchant: z.string().max(500).optional().nullable(),

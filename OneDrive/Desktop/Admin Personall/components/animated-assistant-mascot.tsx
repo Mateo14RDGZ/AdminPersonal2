@@ -54,12 +54,6 @@ function chooseTarget(bounds: DOMRect, keyboardOpen: boolean, name: TargetName):
   return map[name];
 }
 
-function nextIdleTarget(recent: TargetName[]): TargetName {
-  const candidates: TargetName[] = ["rest", "upperLeft", "upperRight", "center", "lastMessage", "response"];
-  const available = candidates.filter((candidate) => !recent.slice(-2).includes(candidate));
-  return available[Math.floor(Math.random() * available.length)] ?? "rest";
-}
-
 /** Stateful, transform-only mascot layer. It never owns pointer events or layout. */
 export function AnimatedAssistantMascot({
   state = "idle",
@@ -186,11 +180,8 @@ export function AnimatedAssistantMascot({
     if (chatState === "thinking") {
       setEmotion("focused");
       moveTo("upperRight", "thinking");
-      const orbit = () => {
-        moveTo(Math.random() > .5 ? "upperLeft" : "upperRight", "thinking");
-        schedule(orbit, 1800 + Math.round(Math.random() * 1300));
-      };
-      schedule(orbit, 1500);
+      schedule(() => moveTo("center", "thinking"), 920);
+      schedule(() => moveTo("upperLeft", "thinking"), 1820);
       return clearTimers;
     }
     if (chatState === "streaming") {
@@ -211,18 +202,7 @@ export function AnimatedAssistantMascot({
       return clearTimers;
     }
     setEmotion("neutral");
-    const wander = () => {
-      const target = nextIdleTarget(historyRef.current);
-      moveTo(target, "wandering");
-      schedule(() => setBehavior("observing"), 900);
-      schedule(wander, 2600 + Math.round(Math.random() * 2200));
-    };
-    moveTo("rest", "resting");
-    schedule(wander, 1600);
-    const sleep = () => {
-      if (historyRef.current.length > 4) { setEmotion("sleepy"); setBehavior("sleeping"); moveTo("rest", "sleeping"); }
-    };
-    schedule(sleep, 33000);
+    moveTo("rest", "observing");
     return clearTimers;
   }, [active, chatState, clearTimers, messageCount, moveTo, schedule, scrollTick, state]);
 
@@ -233,13 +213,9 @@ export function AnimatedAssistantMascot({
       if (cancelled) return;
       setBlink(true);
       schedule(() => setBlink(false), 115);
-      if (Math.random() > .7) {
-        schedule(() => setBlink(true), 250);
-        schedule(() => setBlink(false), 365);
-      }
-      schedule(blinkLoop, 2900 + Math.round(Math.random() * 3200));
+      schedule(blinkLoop, 4200);
     };
-    schedule(blinkLoop, 1300 + Math.round(Math.random() * 1300));
+    schedule(blinkLoop, 2200);
     return () => { cancelled = true; };
   }, [active, chatState, schedule]);
 

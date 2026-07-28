@@ -116,7 +116,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "create_recurring_payment") {
-    if (!data.name || !data.currency || !data.amount || data.amount <= 0 || !data.date) return NextResponse.json({ error: "Faltan datos del pago recurrente." }, { status: 400 });
+    if (!data.name || !data.currency || !data.amount || data.amount <= 0 || !data.date || !data.account_id) return NextResponse.json({ error: "ElegÃ­ la cuenta que se debe modificar para este pago recurrente." }, { status: 400 });
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("id", data.account_id)
+      .eq("user_id", user.id)
+      .eq("currency", data.currency)
+      .eq("is_archived", false)
+      .maybeSingle();
+    if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
+    if (!account) return NextResponse.json({ error: "La cuenta no estÃ¡ disponible o no usa la misma moneda." }, { status: 409 });
     const { error: recurringError } = await supabase.from("recurring_transactions").insert({
       user_id: user.id, type: "EXPENSE", merchant: data.name, amount: data.amount, currency: data.currency,
       account_id: data.account_id, frequency: "MONTHLY", next_execution_date: data.date, auto_create: false,
