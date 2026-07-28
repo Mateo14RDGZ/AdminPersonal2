@@ -17,8 +17,6 @@ type AnimatedAssistantMascotProps = {
   hasError?: boolean;
   isListening?: boolean;
   inputFocused?: boolean;
-  messageCount?: number;
-  scrollTick?: number;
   reducedMotion?: boolean;
   fullScreen?: boolean;
   className?: string;
@@ -63,8 +61,6 @@ export function AnimatedAssistantMascot({
   hasError = false,
   isListening = false,
   inputFocused = false,
-  messageCount = 0,
-  scrollTick = 0,
   reducedMotion: reducedMotionOverride,
   fullScreen = false,
   className = "",
@@ -100,7 +96,9 @@ export function AnimatedAssistantMascot({
 
   const chatState: ChatState = !isOpen ? "closed" : hasError ? "error" : isListening ? "listening" : isStreaming || state === "speaking" ? "streaming" : state === "cancelled" ? "error" : isUserTyping || inputFocused || state === "surprised" ? "userTyping" : state === "thinking" || state === "sending" ? "thinking" : state === "success" || state === "happy" ? "completed" : "idle";
   const active = isOpen && visible && !reducedMotion;
-  const mascotMood: PesadillaMood = state === "surprised" ? "surprised" : state === "cancelled" ? "cancelled" : moodFrom(chatState, emotion);
+  // A plan waiting for the user is deliberately not a celebration.  It is a
+  // focused "ready" pose; an account request is an attentive/questioning one.
+  const mascotMood: PesadillaMood = state === "surprised" ? "surprised" : state === "cancelled" ? "cancelled" : state === "happy" ? "ready" : state === "warning" || state === "confused" ? "listening" : moodFrom(chatState, emotion);
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -169,7 +167,17 @@ export function AnimatedAssistantMascot({
     if (state === "surprised") {
       setEmotion("surprised");
       moveTo("upperRight", "wandering");
-      schedule(() => moveTo("upperLeft", "wandering"), 520);
+      schedule(() => moveTo("center", "observing"), 680);
+      return clearTimers;
+    }
+    if (state === "warning" || state === "confused") {
+      setEmotion("curious");
+      moveTo("nearInput", "approaching");
+      return clearTimers;
+    }
+    if (state === "happy") {
+      setEmotion("confident");
+      moveTo("response", "observing");
       return clearTimers;
     }
     if (chatState === "userTyping" || chatState === "listening") {
@@ -204,7 +212,9 @@ export function AnimatedAssistantMascot({
     setEmotion("neutral");
     moveTo("rest", "observing");
     return clearTimers;
-  }, [active, chatState, clearTimers, messageCount, moveTo, schedule, scrollTick, state]);
+  // Message and scroll changes must not make the character wander.  Its
+  // position changes only as a consequence of an actual assistant state.
+  }, [active, chatState, clearTimers, moveTo, schedule, state]);
 
   useEffect(() => {
     if (!active || chatState !== "idle") { setBlink(false); return; }

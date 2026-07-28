@@ -52,7 +52,7 @@ export function MoneyChat({ onRegistered }: Props) {
   const [hasAssistantError, setHasAssistantError] = useState(false);
   const [sendBurst, setSendBurst] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const [scrollTick, setScrollTick] = useState(0);
+  const [, setScrollTick] = useState(0);
   const [responsePulse, setResponsePulse] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -96,7 +96,8 @@ export function MoneyChat({ onRegistered }: Props) {
   const finishConversation = (mood: Extract<PesadillaMood, "success" | "cancelled">) => {
     setReaction(mood);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => closeConversation(false), 620);
+    // Let success/cancel expressions finish before the closing animation.
+    closeTimerRef.current = window.setTimeout(() => closeConversation(false), 1150);
   };
 
   const sendText = async (rawText: string) => {
@@ -270,7 +271,7 @@ export function MoneyChat({ onRegistered }: Props) {
     finishConversation("cancelled");
   };
 
-  const mascotState: MascotState = reaction === "success" ? "success" : reaction === "cancelled" ? "cancelled" : hasAssistantError ? "error" : listening ? "listening" : sendBurst ? "surprised" : sending ? "thinking" : responsePulse ? "speaking" : plan ? "happy" : "idle";
+  const mascotState: MascotState = reaction === "success" ? "success" : reaction === "cancelled" ? "cancelled" : hasAssistantError ? "error" : listening ? "listening" : sendBurst ? "surprised" : sending ? "thinking" : responsePulse ? "speaking" : movementNeedsAccount ? "warning" : plan ? "happy" : "idle";
 
   const observeChatScroll = () => {
     if (scrollTimerRef.current) return;
@@ -315,7 +316,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"
               >
-                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} messageCount={messages.length} scrollTick={scrollTick} fullScreen />
+                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} fullScreen />
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative z-10 border-b border-[var(--color-border)] pt-[max(.45rem,env(safe-area-inset-top))]">
                   <div className="flex items-center gap-3 px-4 pb-4">
                     <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>

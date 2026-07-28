@@ -146,7 +146,18 @@ export async function POST(request: NextRequest) {
       }
     }
     await logAssistantUsage(session.user.id, Number(result?.usage?.total_tokens ?? 0));
-    const finalPlan = normalized!.plan;
+    let finalPlan = normalized!.plan;
+    // There is no "unassigned" expense or income in this app.  The model may
+    // understand the category perfectly, but it cannot offer confirmation
+    // until a real source account is known.
+    if (finalPlan.action === "register_movement" && !finalPlan.data.account_id) {
+      finalPlan = {
+        action: "reply",
+        message: "¿En qué cuenta querés registrarlo? Elegí una de las cuentas mostradas y conservaré el monto y la categoría.",
+        data: finalPlan.data,
+      };
+      normalized = { ...normalized!, plan: finalPlan, intendedAction: "register_movement" };
+    }
     return NextResponse.json({ plan: finalPlan, draft: { action: normalized!.intendedAction ?? draft?.action ?? null, data: finalPlan.data }, requiresConfirmation: finalPlan.action !== "reply", remainingTokens: Math.max(0, limit - used - Number(result?.usage?.total_tokens ?? 0)), usedAI: true });
   } catch (error) {
     console.error("Assistant request failed", error);

@@ -31,7 +31,7 @@ function AnimatedFace({ mood, blink, lookX, lookY }: Pick<PesadillaAvatarProps, 
   const eyesX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-1.8, Math.min(1.8, value * 1.8)));
   const eyesY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-1.1, Math.min(1.1, value * 1.1)));
   const mouthKey = blink ? "blink" : activeMood;
-  const showAlternateMouth = ["thinking", "speaking", "surprised", "success", "cancelled", "error"].includes(activeMood);
+  const showAlternateMouth = ["thinking", "speaking", "surprised", "ready", "success", "cancelled", "error"].includes(activeMood);
 
   return (
     <motion.svg className="pesadilla-face-overlay" viewBox="0 0 100 138" aria-hidden="true" style={{ x: eyesX, y: eyesY }}>
@@ -50,6 +50,7 @@ function AnimatedFace({ mood, blink, lookX, lookY }: Pick<PesadillaAvatarProps, 
       <AnimatePresence mode="wait">
         {activeMood === "thinking" ? <motion.g key="thinking" initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><path d="M15 72Q26 63 38 70" fill="none" stroke="#15091f" strokeWidth="4.2" strokeLinecap="round" /><path d="M61 70Q72 64 83 72" fill="none" stroke="#15091f" strokeWidth="3.6" strokeLinecap="round" /><path d="M43 101Q50 104 57 101" fill="none" stroke="#250a3c" strokeWidth="5" strokeLinecap="round" /></motion.g> : null}
         {activeMood === "listening" ? <motion.g key="listening" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M16 72Q27 65 38 72" fill="none" stroke="#1d0a2d" strokeWidth="3.5" strokeLinecap="round" /><path d="M61 72Q73 65 84 72" fill="none" stroke="#1d0a2d" strokeWidth="3.5" strokeLinecap="round" /></motion.g> : null}
+        {activeMood === "ready" ? <motion.g key="ready" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><path d="M15 71Q27 62 39 70M61 70Q74 62 85 71" fill="none" stroke="#180827" strokeWidth="3.8" strokeLinecap="round" /><path d="M37 99Q50 108 63 99Q50 115 37 99Z" fill="#b94cff" stroke="#210936" strokeWidth="1.5" /><path d="M50 101l3 4-4 1" fill="#fff" opacity=".92" /></motion.g> : null}
         {activeMood === "surprised" ? <motion.g key="surprised" initial={{ opacity: 0, scale: .7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M15 70Q27 61 39 69M61 69Q73 61 85 70" fill="none" stroke="#20112e" strokeWidth="3.5" strokeLinecap="round" /><ellipse cx="50" cy="102" rx="5.8" ry="7" fill="#170722" stroke="#bb4dff" strokeWidth="1.6" /></motion.g> : null}
         {activeMood === "success" ? <motion.g key="success" initial={{ opacity: 0, scale: .74 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}><path d="M18 76Q27 84 36 76M64 76Q73 84 82 76" fill="none" stroke="#1a0829" strokeWidth="4" strokeLinecap="round" /><path d="M35 98Q50 113 65 98Q50 119 35 98Z" fill="#bc4dff" stroke="#210936" strokeWidth="1.7" /></motion.g> : null}
         {activeMood === "error" || activeMood === "cancelled" ? <motion.g key="error" initial={{ opacity: 0, x: -3 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}><path d="M15 76Q27 68 38 75M62 75Q73 68 85 76" fill="none" stroke="#09040e" strokeWidth="4.5" strokeLinecap="round" /><path d="M39 107Q50 96 61 107" fill="none" stroke="#9b2eec" strokeWidth="3.8" strokeLinecap="round" /></motion.g> : null}
@@ -91,8 +92,8 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle", look
           src="/mascots/pesadilla-canonical.png"
           alt=""
           draggable={false}
-          animate={active ? { rotate: [0, -0.85, 0.65, 0], y: [0, -1.25, 0.8, 0] } : { rotate: 0, y: 0 }}
-          transition={{ duration: mood === "thinking" ? 1.6 : 2.85, repeat: active ? Infinity : 0, ease: "easeInOut" }}
+          animate={!active ? { rotate: 0, y: 0, scaleX: 1, scaleY: 1 } : mood === "success" ? { rotate: [0, -8, 7, 0], y: [0, -10, 0, -5, 0], scaleX: [1, 1.08, .94, 1.04, 1], scaleY: [1, .92, 1.1, .97, 1] } : mood === "cancelled" || mood === "error" ? { rotate: [0, -5, 6, -3, 0], x: [0, -4, 5, -2, 0], scaleX: [1, 1.07, .94, 1] } : mood === "thinking" ? { rotate: [-2, 3, -1, -2], y: [0, -3, 1, 0], scaleX: [1, .97, 1.02, 1] } : mood === "listening" ? { rotate: [0, 4, 2, 0], y: [0, -2, 0], scaleY: [1, 1.045, 1] } : mood === "ready" ? { rotate: [0, -2, 2, 0], y: [0, -4, 0], scaleX: [1, 1.025, 1] } : { rotate: [0, -0.85, 0.65, 0], y: [0, -1.25, 0.8, 0] }}
+          transition={{ duration: mood === "success" ? .9 : mood === "cancelled" || mood === "error" ? .58 : mood === "thinking" ? 1.45 : 2.65, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}
         />
         <AnimatedFace mood={mood} blink={blink} lookX={lookX} lookY={lookY} />
       </motion.span>
