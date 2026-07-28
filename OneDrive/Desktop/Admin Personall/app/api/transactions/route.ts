@@ -16,25 +16,29 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  let accountId = parsed.data.account_id;
-  if (!accountId) {
-    const { data: account } = await supabase
-      .from("accounts")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("currency", parsed.data.currency)
-      .eq("is_archived", false)
-      .order("is_default", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    accountId = account?.id ?? null;
-  }
-
+  const accountId = parsed.data.account_id;
   if (!accountId) {
     return NextResponse.json(
       { error: "Creá una cuenta para esa moneda antes de registrar el movimiento." },
       { status: 409 }
     );
+  }
+
+  if (parsed.data.type === "TRANSFER" && !parsed.data.destination_account_id) {
+    return NextResponse.json({ error: "ElegÃ­ la cuenta de destino para la transferencia." }, { status: 400 });
+  }
+  const accountIds = [accountId, parsed.data.destination_account_id].filter(
+    (id): id is string => Boolean(id)
+  );
+  const { data: matchedAccounts, error: accountError } = await supabase
+    .from("accounts")
+    .select("id,currency")
+    .eq("user_id", user.id)
+    .eq("is_archived", false)
+    .in("id", accountIds);
+  if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
+  if ((matchedAccounts ?? []).length !== accountIds.length || matchedAccounts?.some((account) => account.currency !== parsed.data.currency)) {
+    return NextResponse.json({ error: "La cuenta elegida no estÃ¡ disponible o no coincide con la moneda del movimiento." }, { status: 409 });
   }
 
   const service = createServiceClient();

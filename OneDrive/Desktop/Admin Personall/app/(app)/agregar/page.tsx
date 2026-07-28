@@ -39,10 +39,6 @@ export default function AgregarPage() {
     ]).then(([{ data }, accountData]) => {
       setCategories(data ?? []);
       setAccounts(accountData);
-      const preferred = (accountData as Account[]).find(
-        (account) => account.is_default && account.currency === "UYU"
-      );
-      setAccountId(preferred?.id ?? accountData[0]?.id ?? "");
     });
   }, []);
 
@@ -64,12 +60,20 @@ export default function AgregarPage() {
   const save = useCallback(
     async (categoryId: string | null) => {
       if (numericAmount <= 0 || saving) return;
+      if (!accountId) {
+        setParseMessage("ElegÃ­ la cuenta que se debe modificar antes de guardar el movimiento.");
+        return;
+      }
+      if (transactionType === "TRANSFER" && !destinationAccountId) {
+        setParseMessage("ElegÃ­ la cuenta de destino para la transferencia.");
+        return;
+      }
       setSaving(true);
       const body = {
         type: transactionType,
         amount: numericAmount,
         currency,
-        account_id: accountId || null,
+        account_id: accountId,
         destination_account_id:
           transactionType === "TRANSFER" ? destinationAccountId || null : null,
         category_id: categoryId,
@@ -84,7 +88,12 @@ export default function AgregarPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) throw new Error("network");
+        if (!res.ok) {
+          const result = await res.json().catch(() => null);
+          setParseMessage(typeof result?.error === "string" ? result.error : "No se pudo guardar el movimiento.");
+          setSaving(false);
+          return;
+        }
       } catch {
         addPending(body);
       }
@@ -117,6 +126,10 @@ export default function AgregarPage() {
 
   const parseNaturalText = async () => {
     if (!naturalText.trim() || saving) return;
+    if (!accountId) {
+      setParseMessage("ElegÃ­ primero la cuenta que se debe modificar.");
+      return;
+    }
     setSaving(true);
     setParseMessage("");
     const response = await fetch("/api/parse-transaction", {
@@ -229,7 +242,7 @@ export default function AgregarPage() {
           </div>
           <button
             type="button"
-            disabled={!naturalText.trim() || saving}
+            disabled={!naturalText.trim() || !accountId || saving}
             onClick={() => void parseNaturalText()}
             className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] text-base font-semibold text-white disabled:opacity-40"
           >
@@ -271,11 +284,8 @@ export default function AgregarPage() {
           value={currency}
           onChange={(event) => {
             setCurrency(event.target.value);
-            const preferred = accounts.find(
-              (account) =>
-                account.currency === event.target.value && account.is_default
-            );
-            setAccountId(preferred?.id ?? "");
+            setAccountId("");
+            setDestinationAccountId("");
           }}
           className="app-input"
           aria-label="Moneda"
@@ -345,7 +355,7 @@ export default function AgregarPage() {
           </div>
           <button
             type="button"
-            disabled={numericAmount <= 0}
+            disabled={numericAmount <= 0 || !accountId || (transactionType === "TRANSFER" && !destinationAccountId)}
             onClick={() => setStep("category")}
             className="w-full rounded-2xl py-3.5 text-sm font-semibold text-white disabled:opacity-40 ios-transition"
             style={{ backgroundColor: "var(--color-accent)" }}

@@ -27,6 +27,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const supabase = await createClient();
+  const { data: account, error: accountError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("id", parsed.data.account_id)
+    .eq("user_id", user.id)
+    .eq("currency", parsed.data.currency)
+    .eq("is_archived", false)
+    .maybeSingle();
+  if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
+  if (!account) return NextResponse.json({ error: "ElegÃ­ una cuenta activa con la misma moneda para este pago." }, { status: 409 });
   const { data, error: dbError } = await supabase
     .from("recurring_transactions")
     .insert({
@@ -40,4 +50,3 @@ export async function POST(request: NextRequest) {
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }
-

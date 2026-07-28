@@ -36,7 +36,7 @@ export function RecurringSection() {
         merchant,
         amount: Number(amount),
         currency,
-        account_id: accountId || null,
+        account_id: accountId,
         frequency: "MONTHLY",
         next_execution_date: nextDate,
         auto_create: false,
@@ -88,8 +88,8 @@ export function RecurringSection() {
                 </select>
                 <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Monto" required className="app-input" />
               </div>
-              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="app-input">
-                <option value="">Cuenta (opcional)</option>
+              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="app-input" required>
+                <option value="">Elegir cuenta</option>
                 {accounts.filter((account) => account.currency === currency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
               <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required className="app-input" />

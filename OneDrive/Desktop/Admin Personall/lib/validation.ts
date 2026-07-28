@@ -131,7 +131,7 @@ export const recurringTransactionSchema = z.object({
   type: transactionTypeSchema.default("EXPENSE"),
   amount: z.coerce.number().positive(),
   currency: currencySchema,
-  account_id: z.string().uuid().optional().nullable(),
+  account_id: z.string().uuid(),
   credit_card_id: z.string().uuid().optional().nullable(),
   category_id: z.string().uuid().optional().nullable(),
   merchant: z.string().trim().max(200).optional().nullable(),

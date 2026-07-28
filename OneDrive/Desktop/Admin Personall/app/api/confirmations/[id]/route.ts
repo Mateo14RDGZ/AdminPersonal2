@@ -48,7 +48,23 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!pending) {
     return NextResponse.json({ error: "Confirmación no disponible" }, { status: 404 });
   }
+  if (parsed.data.type === "TRANSFER" && !parsed.data.destination_account_id) {
+    return NextResponse.json({ error: "ElegÃ­ la cuenta de destino para la transferencia." }, { status: 400 });
+  }
   const service = createServiceClient();
+  const accountIds = [parsed.data.account_id, parsed.data.destination_account_id].filter(
+    (accountId): accountId is string => Boolean(accountId)
+  );
+  const { data: accounts, error: accountError } = await service
+    .from("accounts")
+    .select("id,currency")
+    .eq("user_id", user.id)
+    .eq("is_archived", false)
+    .in("id", accountIds);
+  if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
+  if ((accounts ?? []).length !== accountIds.length || accounts?.some((account) => account.currency !== parsed.data.currency)) {
+    return NextResponse.json({ error: "La cuenta elegida no estÃ¡ disponible o no coincide con la moneda." }, { status: 409 });
+  }
   const { data, error: createError } = await service.rpc(
     "create_financial_transaction_service",
     {

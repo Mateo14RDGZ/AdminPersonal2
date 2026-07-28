@@ -104,9 +104,9 @@ export function AnimatedAssistantMascot({
   const pupilX = useSpring(lookX, { stiffness: 210, damping: 22, mass: .3 });
   const pupilY = useSpring(lookY, { stiffness: 210, damping: 22, mass: .3 });
 
-  const chatState: ChatState = !isOpen ? "closed" : hasError ? "error" : isListening ? "listening" : isStreaming ? "streaming" : isUserTyping || inputFocused ? "userTyping" : state === "thinking" || state === "sending" ? "thinking" : state === "success" || state === "happy" ? "completed" : "idle";
+  const chatState: ChatState = !isOpen ? "closed" : hasError ? "error" : isListening ? "listening" : isStreaming || state === "speaking" ? "streaming" : state === "cancelled" ? "error" : isUserTyping || inputFocused || state === "surprised" ? "userTyping" : state === "thinking" || state === "sending" ? "thinking" : state === "success" || state === "happy" ? "completed" : "idle";
   const active = isOpen && visible && !reducedMotion;
-  const mascotMood = moodFrom(chatState, emotion);
+  const mascotMood: PesadillaMood = state === "surprised" ? "surprised" : state === "cancelled" ? "cancelled" : moodFrom(chatState, emotion);
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));

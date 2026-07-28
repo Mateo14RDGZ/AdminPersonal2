@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
   const account = selectedAccount
     ?? (hint
       ? accountFromHint
-      : currencyAccounts.find((candidate) => candidate.is_default) ?? (currencyAccounts.length === 1 ? currencyAccounts[0] : null));
+      : null);
 
   const destinationHint = interpretation.destinationAccountHint
     ? normalizeText(interpretation.destinationAccountHint)
