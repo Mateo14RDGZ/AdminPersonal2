@@ -64,6 +64,10 @@ export default function AgregarPage() {
         setParseMessage("ElegÃ­ la cuenta que se debe modificar antes de guardar el movimiento.");
         return;
       }
+      if (!merchant.trim()) {
+        setParseMessage("Escribí una descripción breve antes de guardar el movimiento.");
+        return;
+      }
       if (transactionType === "TRANSFER" && !destinationAccountId) {
         setParseMessage("ElegÃ­ la cuenta de destino para la transferencia.");
         return;
@@ -339,6 +343,19 @@ export default function AgregarPage() {
         )}
       </div>
 
+      <div className="rounded-[18px] bg-[var(--color-surface-elevated)] p-4">
+        <label htmlFor="movement-description" className="text-sm font-semibold">Descripción del movimiento</label>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">Obligatoria para identificar cada gasto o ingreso.</p>
+        <input
+          id="movement-description"
+          value={merchant}
+          onChange={(event) => setMerchant(event.target.value)}
+          placeholder="Ej.: Nafta, supermercado o sueldo"
+          className="app-input mt-3"
+          required
+        />
+      </div>
+
       {step === "amount" ? (
         <>
           <div className="grid grid-cols-3 gap-3">
@@ -371,7 +388,7 @@ export default function AgregarPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => void save(cat.id)}
-                disabled={saving}
+                disabled={saving || !merchant.trim()}
                 className="pressable flex flex-col items-center gap-2 rounded-[18px] bg-[var(--color-surface-elevated)] px-2 py-4 disabled:opacity-50"
               >
                 <CategoryIcon name={cat.icon} size={32} color={cat.color} />
@@ -383,7 +400,7 @@ export default function AgregarPage() {
             <button
               type="button"
               onClick={() => void save(null)}
-              disabled={saving}
+              disabled={saving || !merchant.trim()}
               className="pressable flex flex-col items-center gap-2 rounded-[18px] border border-dashed border-[var(--color-border)] px-2 py-4 disabled:opacity-50"
             >
               <CategoryIcon name="dots" size={32} />
@@ -406,16 +423,10 @@ export default function AgregarPage() {
           onClick={() => setShowExtras((v) => !v)}
           className="w-full text-left text-sm font-medium text-[var(--color-muted)]"
         >
-          {showExtras ? "Ocultar detalles" : "Comercio y nota (opcional)"}
+          {showExtras ? "Ocultar nota" : "Agregar una nota (opcional)"}
         </button>
         {showExtras ? (
           <div className="mt-3 space-y-3">
-            <input
-              value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
-              placeholder="Comercio"
-              className="w-full rounded-xl border border-[var(--color-border)] bg-transparent px-3 py-2.5 text-base outline-none focus:border-[var(--color-accent)]"
-            />
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}

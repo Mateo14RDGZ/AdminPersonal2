@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { currencySchema, transactionTypeSchema } from "@/lib/validation";
 import { databaseTransactionSource } from "@/lib/database-source";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 const schema = z.object({
   fileName: z.string().trim().min(1).max(200),
@@ -16,7 +17,7 @@ const schema = z.object({
         amount: z.coerce.number().positive(),
         currency: currencySchema,
         type: transactionTypeSchema.default("EXPENSE"),
-        merchant: z.string().trim().max(500).optional().nullable(),
+        merchant: z.string().trim().min(1).max(500),
       })
     )
     .min(1)
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
     else if (data) imported += 1;
     else duplicates += 1;
   }
+  if (imported > 0) await reconcileUserAccountBalances(service, user.id);
 
   await supabase
     .from("import_batches")

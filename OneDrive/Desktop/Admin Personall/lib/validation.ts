@@ -37,7 +37,7 @@ export const ingestBodySchema = z.object({
   occurred_at: z.string().datetime().optional().nullable(),
 });
 
-export const createTransactionSchema = z.object({
+const transactionShape = z.object({
   type: transactionTypeSchema.default("EXPENSE"),
   amount: z.coerce.number().positive(),
   currency: currencySchema.default("UYU"),
@@ -55,6 +55,23 @@ export const createTransactionSchema = z.object({
   idempotency_key: z.string().min(8).max(200).optional().nullable(),
 });
 
+function requireMovementDescription(
+  value: { merchant?: string | null; description?: string | null; note?: string | null; notes?: string | null },
+  context: z.RefinementCtx
+) {
+  const hasDescription = [value.merchant, value.description, value.note, value.notes]
+    .some((item) => typeof item === "string" && item.trim().length > 0);
+  if (!hasDescription) {
+    context.addIssue({
+      code: "custom",
+      path: ["merchant"],
+      message: "Cada movimiento necesita una descripción o comercio.",
+    });
+  }
+}
+
+export const createTransactionSchema = transactionShape.superRefine(requireMovementDescription);
+
 export const patchTransactionSchema = z.object({
   type: transactionTypeSchema.optional(),
   amount: z.coerce.number().positive().optional(),
@@ -71,9 +88,9 @@ export const patchTransactionSchema = z.object({
   status: z.enum(["CONFIRMED", "PENDING_REVIEW", "ESTIMATED"]).optional(),
 });
 
-export const quickTransactionSchema = createTransactionSchema.extend({
+export const quickTransactionSchema = transactionShape.extend({
   account_id: z.string().uuid(),
-});
+}).superRefine(requireMovementDescription);
 
 export const parseTransactionSchema = z.object({
   text: z.string().trim().min(2).max(1000),

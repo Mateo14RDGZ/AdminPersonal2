@@ -4,6 +4,7 @@ import { matchCategoryFromRules } from "@/lib/categorize";
 import { sendPushToUser } from "@/lib/push-server";
 import { checkRateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { ingestBodySchema } from "@/lib/validation";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 const INGEST_USER_ID = process.env.INGEST_USER_ID;
 
@@ -46,6 +47,9 @@ export async function handleIngest(
   }
 
   const { amount, merchant, card_name, occurred_at } = parsed.data;
+  if (!merchant?.trim() && !card_name?.trim()) {
+    return Response.json({ error: "Cada movimiento necesita una descripción." }, { status: 400 });
+  }
   const userId = INGEST_USER_ID!;
   const supabase = createServiceClient();
 
@@ -94,6 +98,7 @@ export async function handleIngest(
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
+  await reconcileUserAccountBalances(supabase, userId);
 
   const merchantLabel = merchant?.trim() || "Gasto";
   const formatted = new Intl.NumberFormat("es-AR", {

@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/format";
 import { databaseTransactionSource } from "@/lib/database-source";
 import { sendPushToUser } from "@/lib/push-server";
 import { matchCategoryFromRules } from "@/lib/categorize";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 export async function POST(request: NextRequest) {
   let json: unknown;
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
   const requiresConfirmation =
     !interpretation.amount ||
     !account ||
+    !(interpretation.merchant?.trim() || interpretation.description?.trim()) ||
     (interpretation.type === "TRANSFER" && !destinationAccount) ||
     interpretation.confidence < 0.85;
 
@@ -235,6 +237,11 @@ export async function POST(request: NextRequest) {
 
   if (createError) {
     return NextResponse.json({ error: createError.message }, { status: 500 });
+  }
+  try {
+    await reconcileUserAccountBalances(service, userId);
+  } catch (reconciliationError) {
+    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "El movimiento se guardó, pero no se pudo actualizar el saldo." }, { status: 500 });
   }
 
   const label =

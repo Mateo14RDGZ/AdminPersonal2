@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { accountSchema, accountUpdateSchema } from "@/lib/validation";
+import { reconcileUserAccountBalances } from "@/lib/account-balance-reconciliation";
 
 export async function GET() {
   const { user, error } = await requireUser();
   if (error) return error;
   const supabase = await createClient();
+  try {
+    await reconcileUserAccountBalances(createServiceClient(), user.id);
+  } catch (reconciliationError) {
+    return NextResponse.json({ error: reconciliationError instanceof Error ? reconciliationError.message : "No se pudieron actualizar los saldos." }, { status: 500 });
+  }
   const { data, error: dbError } = await supabase
     .from("accounts")
     .select("*")
