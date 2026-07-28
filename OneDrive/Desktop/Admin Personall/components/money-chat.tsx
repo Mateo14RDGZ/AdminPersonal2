@@ -8,7 +8,7 @@ import { loadAccounts } from "@/lib/accounts-client";
 import type { Account } from "@/lib/database.types";
 import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
 import { AnimatedAssistantMascot, type MascotState } from "@/components/animated-assistant-mascot";
-import type { MascotIntent } from "@/components/use-mascot-brain";
+import type { MascotIntent, MascotOrigin } from "@/components/use-mascot-brain";
 
 type Message = { role: "assistant" | "user"; text: string };
 type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
@@ -56,6 +56,9 @@ export function MoneyChat({ onRegistered }: Props) {
   const [, setScrollTick] = useState(0);
   const [responsePulse, setResponsePulse] = useState(false);
   const [mascotIntent, setMascotIntent] = useState<MascotIntent | null>(null);
+  const [mascotOrigin, setMascotOrigin] = useState<MascotOrigin | null>(null);
+  const [mascotReturning, setMascotReturning] = useState(false);
+  const mascotAnchorRef = useRef<HTMLSpanElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const sendBurstTimerRef = useRef<number | null>(null);
@@ -82,17 +85,21 @@ export function MoneyChat({ onRegistered }: Props) {
   }, [hasAssistantError]);
 
   const closeConversation = (resetReaction = true) => {
-    setConversationActive(false);
-    setPlan(null);
-    setText("");
-    setDraft(null);
-    if (resetReaction) setReaction(null);
-    setHasAssistantError(false);
-    setSendBurst(false);
-    setInputFocused(false);
-    setResponsePulse(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = window.setTimeout(() => setMessages(initialMessages), 700);
+    setMascotReturning(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      setConversationActive(false);
+      setMascotReturning(false);
+      setPlan(null);
+      setText("");
+      setDraft(null);
+      if (resetReaction) setReaction(null);
+      setHasAssistantError(false);
+      setSendBurst(false);
+      setInputFocused(false);
+      setResponsePulse(false);
+      setMessages(initialMessages);
+    }, 640);
   };
 
   const finishConversation = (mood: Extract<PesadillaMood, "success" | "cancelled">) => {
@@ -106,6 +113,9 @@ export function MoneyChat({ onRegistered }: Props) {
     const value = rawText.trim();
     if (!value || sending) return;
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    const anchor = mascotAnchorRef.current?.getBoundingClientRect();
+    if (anchor) setMascotOrigin({ x: anchor.left + anchor.width / 2, y: anchor.top + anchor.height / 2, size: Math.max(anchor.width, anchor.height) });
+    setMascotReturning(false);
     setMessages((current) => [...current, { role: "user", text: value }]);
     setConversationActive(true);
     setText("");
@@ -298,7 +308,7 @@ export function MoneyChat({ onRegistered }: Props) {
   };
 
   const composer = (expanded: boolean) => (
-    <form onSubmit={send} className={`relative z-10 flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
+    <form data-mascot-target="input" onSubmit={send} className={`relative z-10 flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
       <input autoFocus={expanded} value={text} onFocus={() => setInputFocused(true)} onBlur={() => setInputFocused(false)} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
       <button type="button" onClick={toggleDictation} disabled={sending} className={`pressable tap-target flex shrink-0 items-center justify-center rounded-2xl border ${listening ? "animate-pulse border-[var(--color-accent)] bg-[var(--color-accent)] text-white" : "border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-muted)]"}`} aria-label={listening ? "Detener dictado" : "Dictar mensaje"} aria-pressed={listening}><IconMicrophone size={20} /></button>
       <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-black/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
@@ -310,7 +320,7 @@ export function MoneyChat({ onRegistered }: Props) {
       <section className="assistant-card app-card overflow-hidden">
         <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
         <div className="relative flex items-center gap-3 px-4 py-4">
-          <PesadillaAvatar />
+          <span ref={mascotAnchorRef} className="relative flex h-11 w-11 shrink-0 items-center justify-center"><PesadillaAvatar size={44} /></span>
           <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Pesadilla</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero. Contame qué querés hacer.</p></div>
           <IconMessageCircle className="text-[var(--color-muted)]" size={20} />
         </div>
@@ -332,7 +342,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"
               >
-                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} aiIntent={mascotIntent} fullScreen />
+                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} aiIntent={mascotIntent} origin={mascotOrigin} isReturning={mascotReturning} fullScreen />
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative z-10 border-b border-[var(--color-border)] pt-[max(.45rem,env(safe-area-inset-top))]">
                   <div className="flex items-center gap-3 px-4 pb-4">
                     <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
@@ -340,10 +350,10 @@ export function MoneyChat({ onRegistered }: Props) {
                   </div>
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="relative z-10 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
-                <div onScroll={observeChatScroll} className="relative z-10 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
-                {movementNeedsAccount ? <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.44, ease: panelEase }} className="mx-3 mb-3 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/7 p-3"><p className="px-1 text-sm font-semibold">Elegí la cuenta</p><p className="mt-0.5 px-1 text-xs text-[var(--color-muted)]">El movimiento se guardará únicamente en la cuenta que selecciones.</p><div className="mt-3 flex flex-wrap gap-2">{accounts.map((account) => <button key={account.id} type="button" onClick={() => selectMovementAccount(account)} className="pressable min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm font-medium">{account.name}<span className="ml-1.5 text-xs text-[var(--color-muted)]">{account.currency}</span></button>)}</div></motion.div> : null}
+                <div onScroll={observeChatScroll} className="relative z-10 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p data-mascot-target={message.role === "user" ? "user-message" : "response"} key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
+                {movementNeedsAccount ? <motion.div data-mascot-target="options" initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.44, ease: panelEase }} className="mx-3 mb-3 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/7 p-3"><p className="px-1 text-sm font-semibold">Elegí la cuenta</p><p className="mt-0.5 px-1 text-xs text-[var(--color-muted)]">El movimiento se guardará únicamente en la cuenta que selecciones.</p><div className="mt-3 flex flex-wrap gap-2">{accounts.map((account) => <button key={account.id} type="button" onClick={() => selectMovementAccount(account)} className="pressable min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm font-medium">{account.name}<span className="ml-1.5 text-xs text-[var(--color-muted)]">{account.currency}</span></button>)}</div></motion.div> : null}
                 {listening || voiceStatus ? <p className={`px-4 pb-2 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
-                {plan && !movementNeedsAccount ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={cancelPlan} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
+                {plan && !movementNeedsAccount ? <motion.div data-mascot-target="confirmation" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={cancelPlan} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
                 {composer(true)}
               </motion.section>
             ) : null}

@@ -7,11 +7,12 @@ import type { PesadillaMood } from "@/components/pesadilla-avatar";
 
 export type MascotEmotion = "neutral" | "curious" | "focused" | "confident" | "happy" | "frustrated" | "sleepy" | "surprised";
 export type MascotBehavior = "entering" | "resting" | "observing" | "approaching" | "wandering" | "thinking" | "speaking" | "celebrating" | "recovering" | "sleeping";
-export type MascotAttention = "none" | "input" | "user-message" | "response" | "destination" | "error" | "upper-space";
+export type MascotAttention = "none" | "input" | "user-message" | "response" | "options" | "destination" | "error" | "upper-space";
 export type MascotIntent = { emotion?: string; energy?: number; behavior?: string; intensity?: number };
+export type MascotOrigin = { x: number; y: number; size: number };
 
 type Phase = "closed" | "idle" | "typing" | "sending" | "thinking" | "streaming" | "ready" | "success" | "error" | "listening" | "warning";
-type Zone = "rest" | "upper-left" | "upper-right" | "center" | "input" | "message" | "response";
+type Zone = "rest" | "upper-left" | "upper-right" | "center" | "input" | "message" | "response" | "options" | "confirmation";
 type Micro = "observe" | "ponder" | "listen" | "stretch" | "turn" | "rest" | "sleep";
 type Move = (zone: Zone, behavior: MascotBehavior, attention: MascotAttention, energyValue: number) => void;
 
@@ -25,6 +26,8 @@ type BrainInput = {
   isListening: boolean;
   inputFocused: boolean;
   aiIntent?: MascotIntent | null;
+  origin?: MascotOrigin | null;
+  isReturning?: boolean;
   reducedMotion?: boolean;
 };
 
@@ -70,7 +73,7 @@ function moodFor(phase: Phase, micro: Micro, emotion: MascotEmotion): PesadillaM
   return "idle";
 }
 
-function targetFor(bounds: DOMRect, zone: Zone, keyboardOpen: boolean) {
+function targetFor(bounds: DOMRect, zone: Zone, keyboardOpen: boolean, stage: HTMLDivElement | null) {
   const mascotHalf = Math.min(52, Math.max(38, bounds.width * .13));
   const rangeX = Math.max(50, bounds.width / 2 - mascotHalf - 28);
   const contentBottom = Math.max(160, bounds.height - (keyboardOpen ? 340 : 190));
@@ -83,8 +86,18 @@ function targetFor(bounds: DOMRect, zone: Zone, keyboardOpen: boolean) {
     input: { x: rangeX * .55, y: clamp(contentBottom, 150, 398), lookX: .2, lookY: .9, rotate: 6 },
     message: { x: rangeX * .5, y: clamp(contentBottom * .66, 205, 350), lookX: .45, lookY: .22, rotate: 5 },
     response: { x: -rangeX * .5, y: clamp(contentBottom * .58, 190, 336), lookX: -.42, lookY: .2, rotate: -5 },
+    options: { x: rangeX * .56, y: clamp(contentBottom * .72, 205, 410), lookX: -.35, lookY: .25, rotate: 4 },
+    confirmation: { x: -rangeX * .54, y: clamp(contentBottom * .72, 205, 410), lookX: .34, lookY: .25, rotate: -4 },
   };
-  return targets[zone];
+  const selector = zone === "message" ? '[data-mascot-target="user-message"]' : zone === "response" ? '[data-mascot-target="response"]' : zone === "input" ? '[data-mascot-target="input"]' : zone === "options" ? '[data-mascot-target="options"]' : zone === "confirmation" ? '[data-mascot-target="confirmation"]' : null;
+  const matches = selector ? stage?.parentElement?.querySelectorAll<HTMLElement>(selector) : null;
+  const element = matches?.length ? matches[matches.length - 1] : null;
+  if (!element) return targets[zone];
+  const rect = element.getBoundingClientRect();
+  const targetX = clamp(rect.left - bounds.left + rect.width / 2 - bounds.width / 2, -rangeX, rangeX);
+  const targetY = clamp(rect.top - bounds.top - 64, 118, contentBottom);
+  // Stay close enough to acknowledge UI, but never sit over its text.
+  return { ...targets[zone], x: zone === "response" ? clamp(targetX - 54, -rangeX, rangeX) : clamp(targetX + 54, -rangeX, rangeX), y: targetY, lookX: clamp((targetX - targets[zone].x) / rangeX, -1, 1), lookY: .55 };
 }
 
 /** Decision layer for Pesadilla. It only changes discrete intent, never React state per frame. */
@@ -100,6 +113,7 @@ export function useMascotBrain(input: BrainInput) {
   const lastInteraction = useRef(0);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [entered, setEntered] = useState(false);
   const [brain, setBrain] = useState({ emotion: "neutral" as MascotEmotion, behavior: "resting" as MascotBehavior, attention: "none" as MascotAttention, micro: "rest" as Micro, energy: .42, intensity: .35 });
 
   const xTarget = useMotionValue(0);
@@ -138,7 +152,7 @@ export function useMascotBrain(input: BrainInput) {
     moveRef.current = (zone, behavior, attention, energyValue) => {
       const bounds = input.stageRef.current?.getBoundingClientRect();
       if (!bounds) return;
-      const target = targetFor(bounds, zone, keyboardOpen);
+      const target = targetFor(bounds, zone, keyboardOpen, input.stageRef.current);
       const deltaX = target.x - xTarget.get();
       const deltaY = target.y - yTarget.get();
       const distance = Math.hypot(deltaX, deltaY);
@@ -169,6 +183,37 @@ export function useMascotBrain(input: BrainInput) {
   }, []);
 
   useEffect(() => {
+    clearTimers();
+    if (!input.isOpen) { setEntered(false); return clearTimers; }
+    const origin = input.origin;
+    if (origin) {
+      const stageCenterX = window.innerWidth / 2 - 21;
+      xTarget.set(origin.x - stageCenterX);
+      yTarget.set(Math.max(8, origin.y - 44));
+      rotateTarget.set(-7);
+      lookXTarget.set(.15); lookYTarget.set(-.35);
+      setBrain((current) => ({ ...current, behavior: "entering", attention: "destination", energy: .66, intensity: .72 }));
+    }
+    const timer = window.setTimeout(() => setEntered(true), origin ? 520 : 0);
+    timers.current.push(timer);
+    return clearTimers;
+  }, [clearTimers, input.isOpen, input.origin, lookXTarget, lookYTarget, rotateTarget, xTarget, yTarget]);
+
+  useEffect(() => {
+    if (!input.isReturning || !input.origin || !input.isOpen) return;
+    clearTimers();
+    const stageCenterX = window.innerWidth / 2 - 21;
+    lookXTarget.set(-.2); lookYTarget.set(.65);
+    setBrain((current) => ({ ...current, behavior: "recovering", attention: "destination", energy: .72, intensity: .82 }));
+    animate(xTarget, input.origin.x - stageCenterX, { type: "spring", stiffness: 45, damping: 15, mass: 1.1 });
+    animate(yTarget, Math.max(8, input.origin.y - 44), { type: "spring", stiffness: 41, damping: 16, mass: 1.2 });
+    animate(rotateTarget, 6, { type: "spring", stiffness: 80, damping: 17 });
+    animate(stretchXTarget, 1.04, { duration: .15 }); animate(stretchYTarget, .965, { duration: .15 });
+    schedule(() => { animate(stretchXTarget, 1, { type: "spring", stiffness: 110, damping: 15 }); animate(stretchYTarget, 1, { type: "spring", stiffness: 110, damping: 15 }); }, 420);
+    return clearTimers;
+  }, [clearTimers, input.isOpen, input.isReturning, input.origin, lookXTarget, lookYTarget, rotateTarget, schedule, stretchXTarget, stretchYTarget, xTarget, yTarget]);
+
+  useEffect(() => {
     const refresh = () => {
       setVisible(!document.hidden);
       const view = window.visualViewport;
@@ -187,7 +232,7 @@ export function useMascotBrain(input: BrainInput) {
 
   useEffect(() => {
     clearTimers();
-    if (phase === "closed" || !visible || reducedMotion) {
+    if (phase === "closed" || !visible || reducedMotion || input.isReturning || !entered) {
       setBrain({ emotion: "neutral", behavior: "resting", attention: "none", micro: "rest", energy: 0, intensity: 0 });
       return clearTimers;
     }
@@ -211,7 +256,7 @@ export function useMascotBrain(input: BrainInput) {
       return clearTimers;
     }
     if (phase === "streaming") { apply("confident", "speaking", "response", "observe", .62, "response", .74); schedule(() => move("message", "speaking", "user-message", .58), 980); return clearTimers; }
-    if (phase === "ready" || phase === "warning") { apply(phase === "ready" ? "confident" : "curious", "observing", phase === "warning" ? "input" : "response", "observe", .54, phase === "warning" ? "input" : "response", .68); return clearTimers; }
+    if (phase === "ready" || phase === "warning") { apply(phase === "ready" ? "confident" : "curious", "observing", phase === "warning" ? "options" : "response", "observe", .54, phase === "warning" ? "options" : "confirmation", .68); return clearTimers; }
     if (phase === "success") { apply("happy", "celebrating", "response", "observe", .95, "center", 1); schedule(() => apply("happy", "recovering", "none", "rest", .42, "rest", .46), 1200); return clearTimers; }
     if (phase === "error") { apply("frustrated", "recovering", "error", "rest", .7, "center", .9); schedule(() => apply("neutral", "recovering", "none", "rest", .32, "rest", .35), 1500); return clearTimers; }
 
@@ -242,7 +287,7 @@ export function useMascotBrain(input: BrainInput) {
     };
     schedule(chooseMicro, 540);
     return clearTimers;
-  }, [clearTimers, intent, move, phase, reducedMotion, schedule, visible]);
+  }, [clearTimers, entered, input.isReturning, intent, move, phase, reducedMotion, schedule, visible]);
 
   useEffect(() => {
     if (phase === "closed" || !visible) return;

@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { PesadillaAvatar } from "@/components/pesadilla-avatar";
-import { useMascotBrain, type MascotIntent } from "@/components/use-mascot-brain";
+import { useMascotBrain, type MascotIntent, type MascotOrigin } from "@/components/use-mascot-brain";
 
 export type ChatState = "closed" | "idle" | "userTyping" | "sending" | "thinking" | "streaming" | "completed" | "error" | "listening";
 export type MascotState = Exclude<ChatState, "closed" | "userTyping" | "completed"> | "speaking" | "success" | "happy" | "warning" | "confused" | "sleeping" | "surprised" | "cancelled";
@@ -20,18 +20,20 @@ type AnimatedAssistantMascotProps = {
   fullScreen?: boolean;
   className?: string;
   aiIntent?: MascotIntent | null;
+  origin?: MascotOrigin | null;
+  isReturning?: boolean;
 };
 
 /** Visual shell only. `useMascotBrain` owns decisions, memory, movement and attention. */
 export function AnimatedAssistantMascot({
   state = "idle", isOpen, isUserTyping = false, isStreaming = false, hasError = false,
   isListening = false, inputFocused = false, reducedMotion: reducedMotionOverride,
-  fullScreen = false, className = "", aiIntent,
+  fullScreen = false, className = "", aiIntent, origin, isReturning = false,
 }: AnimatedAssistantMascotProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const systemReducedMotion = useReducedMotion();
   const reducedMotion = Boolean(reducedMotionOverride ?? systemReducedMotion);
-  const brain = useMascotBrain({ stageRef, state, isOpen, isUserTyping, isStreaming, hasError, isListening, inputFocused, aiIntent, reducedMotion });
+  const brain = useMascotBrain({ stageRef, state, isOpen, isUserTyping, isStreaming, hasError, isListening, inputFocused, aiIntent, origin, isReturning, reducedMotion });
   const small = fullScreen ? 86 : 58;
 
   return (
