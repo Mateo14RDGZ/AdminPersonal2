@@ -22,7 +22,18 @@ function normalizePlan(value: unknown): AssistantPlan | null {
     data: { ...emptyPlanData, ...suppliedData },
   };
   const result = planSchema.safeParse(normalized);
-  return result.success ? result.data : null;
+  if (!result.success) return null;
+  const plan = result.data;
+  const missing = plan.action === "create_account"
+    ? !plan.data.name ? "el nombre de la cuenta" : !plan.data.currency ? "la moneda" : plan.data.amount == null ? "el saldo inicial" : !plan.data.account_type ? "el tipo de cuenta (efectivo, banco o ahorro)" : null
+    : plan.action === "create_card"
+      ? !plan.data.name ? "el nombre de la tarjeta" : !plan.data.currency ? "la moneda" : plan.data.amount == null ? "el limite de credito" : null
+      : plan.action === "create_goal"
+        ? !plan.data.name ? "el nombre de la meta" : !plan.data.currency ? "la moneda" : !plan.data.target_amount ? "el objetivo de ahorro" : null
+        : plan.action === "create_recurring_payment"
+          ? !plan.data.name ? "el nombre del pago" : !plan.data.currency ? "la moneda" : !plan.data.amount ? "el importe" : !plan.data.date ? "la proxima fecha de vencimiento" : null
+          : null;
+  return missing ? { action: "reply", message: `Para continuar solo necesito ${missing}.`, data: plan.data } : plan;
 }
 
 function contentToJson(content: unknown): unknown {
