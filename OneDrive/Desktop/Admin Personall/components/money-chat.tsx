@@ -51,9 +51,14 @@ export function MoneyChat({ onRegistered }: Props) {
   const [reaction, setReaction] = useState<PesadillaMood | null>(null);
   const [hasAssistantError, setHasAssistantError] = useState(false);
   const [sendBurst, setSendBurst] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [scrollTick, setScrollTick] = useState(0);
+  const [responsePulse, setResponsePulse] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const sendBurstTimerRef = useRef<number | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+  const responsePulseTimerRef = useRef<number | null>(null);
   const suggestions = ["Configurar mis cuentas", "Crear una categoría", "Registrar mi sueldo"];
 
   useEffect(() => {
@@ -63,6 +68,8 @@ export function MoneyChat({ onRegistered }: Props) {
       recognitionRef.current?.stop();
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
       if (sendBurstTimerRef.current) window.clearTimeout(sendBurstTimerRef.current);
+      if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+      if (responsePulseTimerRef.current) window.clearTimeout(responsePulseTimerRef.current);
     };
   }, []);
 
@@ -80,6 +87,8 @@ export function MoneyChat({ onRegistered }: Props) {
     if (resetReaction) setReaction(null);
     setHasAssistantError(false);
     setSendBurst(false);
+    setInputFocused(false);
+    setResponsePulse(false);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     closeTimerRef.current = window.setTimeout(() => setMessages(initialMessages), 700);
   };
@@ -116,6 +125,9 @@ export function MoneyChat({ onRegistered }: Props) {
         return;
       }
       const nextPlan = data.plan as Plan;
+      setResponsePulse(true);
+      if (responsePulseTimerRef.current) window.clearTimeout(responsePulseTimerRef.current);
+      responsePulseTimerRef.current = window.setTimeout(() => setResponsePulse(false), 900);
       const nextDraft = data.draft as ConversationDraft | undefined;
       const resolvedDraft = nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data };
       const availableAccounts = accounts.length ? accounts : await loadAccounts().catch(() => [] as Account[]);
@@ -258,11 +270,19 @@ export function MoneyChat({ onRegistered }: Props) {
     finishConversation("cancelled");
   };
 
-  const mascotState: MascotState = reaction === "success" ? "success" : reaction === "cancelled" ? "cancelled" : hasAssistantError ? "error" : listening ? "listening" : sendBurst ? "surprised" : sending ? "thinking" : plan ? "happy" : "idle";
+  const mascotState: MascotState = reaction === "success" ? "success" : reaction === "cancelled" ? "cancelled" : hasAssistantError ? "error" : listening ? "listening" : sendBurst ? "surprised" : sending ? "thinking" : responsePulse ? "speaking" : plan ? "happy" : "idle";
+
+  const observeChatScroll = () => {
+    if (scrollTimerRef.current) return;
+    scrollTimerRef.current = window.setTimeout(() => {
+      scrollTimerRef.current = null;
+      setScrollTick((current) => current + 1);
+    }, 220);
+  };
 
   const composer = (expanded: boolean) => (
     <form onSubmit={send} className={`relative z-10 flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
-      <input autoFocus={expanded} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
+      <input autoFocus={expanded} value={text} onFocus={() => setInputFocused(true)} onBlur={() => setInputFocused(false)} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
       <button type="button" onClick={toggleDictation} disabled={sending} className={`pressable tap-target flex shrink-0 items-center justify-center rounded-2xl border ${listening ? "animate-pulse border-[var(--color-accent)] bg-[var(--color-accent)] text-white" : "border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-muted)]"}`} aria-label={listening ? "Detener dictado" : "Dictar mensaje"} aria-pressed={listening}><IconMicrophone size={20} /></button>
       <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-black/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
     </form>
@@ -295,7 +315,7 @@ export function MoneyChat({ onRegistered }: Props) {
                 aria-modal="true"
                 aria-label="Pesadilla, asistente financiero"
               >
-                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} fullScreen />
+                <AnimatedAssistantMascot state={mascotState} isOpen={conversationActive} isUserTyping={Boolean(text.trim())} isStreaming={false} hasError={hasAssistantError} isListening={listening} inputFocused={inputFocused} messageCount={messages.length} scrollTick={scrollTick} fullScreen />
                 <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative z-10 border-b border-[var(--color-border)] pt-[max(.45rem,env(safe-area-inset-top))]">
                   <div className="flex items-center gap-3 px-4 pb-4">
                     <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Pesadilla</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Tu asistente financiero entiende lenguaje cotidiano y prepara el cambio antes de guardarlo.</p></div>
@@ -303,7 +323,7 @@ export function MoneyChat({ onRegistered }: Props) {
                   </div>
                 </motion.header>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="relative z-10 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
-                <div className="relative z-10 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
+                <div onScroll={observeChatScroll} className="relative z-10 min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
                 {movementNeedsAccount ? <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.44, ease: panelEase }} className="mx-3 mb-3 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/7 p-3"><p className="px-1 text-sm font-semibold">Elegí la cuenta</p><p className="mt-0.5 px-1 text-xs text-[var(--color-muted)]">El movimiento se guardará únicamente en la cuenta que selecciones.</p><div className="mt-3 flex flex-wrap gap-2">{accounts.map((account) => <button key={account.id} type="button" onClick={() => selectMovementAccount(account)} className="pressable min-h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm font-medium">{account.name}<span className="ml-1.5 text-xs text-[var(--color-muted)]">{account.currency}</span></button>)}</div></motion.div> : null}
                 {listening || voiceStatus ? <p className={`px-4 pb-2 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
                 {plan ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={cancelPlan} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}

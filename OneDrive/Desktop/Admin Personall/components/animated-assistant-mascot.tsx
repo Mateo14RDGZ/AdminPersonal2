@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { animate, motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { PesadillaAvatar, type PesadillaMood } from "@/components/pesadilla-avatar";
 
-export type MascotState = "idle" | "listening" | "thinking" | "speaking" | "success" | "happy" | "warning" | "confused" | "error" | "sleeping" | "surprised" | "cancelled";
+export type ChatState = "closed" | "idle" | "userTyping" | "sending" | "thinking" | "streaming" | "completed" | "error" | "listening";
+export type EmotionalState = "neutral" | "curious" | "focused" | "confident" | "happy" | "excited" | "confused" | "frustrated" | "sleepy" | "surprised";
+export type BehaviorState = "resting" | "observing" | "wandering" | "approaching" | "thinking" | "speaking" | "celebrating" | "recovering" | "sleeping";
+export type MascotState = Exclude<ChatState, "closed" | "userTyping" | "completed"> | "speaking" | "success" | "happy" | "warning" | "confused" | "sleeping" | "surprised" | "cancelled";
 
 type AnimatedAssistantMascotProps = {
   state?: MascotState;
@@ -13,52 +16,50 @@ type AnimatedAssistantMascotProps = {
   isStreaming?: boolean;
   hasError?: boolean;
   isListening?: boolean;
+  inputFocused?: boolean;
+  messageCount?: number;
+  scrollTick?: number;
   reducedMotion?: boolean;
   fullScreen?: boolean;
   className?: string;
 };
 
-type Drift = { x: number; y: number; rotate: number; scale: number };
+type TargetName = "rest" | "upperLeft" | "upperRight" | "center" | "nearInput" | "lastMessage" | "response";
+type Target = { name: TargetName; x: number; y: number; rotate: number; lookX: number; lookY: number };
 
-const rest: Drift = { x: 0, y: 0, rotate: 0, scale: 1 };
-
-function toGhostMood(state: MascotState): PesadillaMood {
-  if (state === "thinking" || state === "confused") return "thinking";
-  if (state === "listening") return "listening";
-  if (state === "success" || state === "happy") return "success";
-  if (state === "error") return "error";
-  if (state === "cancelled" || state === "warning") return "cancelled";
-  if (state === "speaking") return "speaking";
-  if (state === "surprised") return "surprised";
+function moodFrom(chat: ChatState, emotion: EmotionalState): PesadillaMood {
+  if (chat === "error") return "error";
+  if (chat === "listening" || chat === "userTyping") return "listening";
+  if (chat === "thinking") return "thinking";
+  if (chat === "streaming") return "speaking";
+  if (chat === "completed" || emotion === "excited") return "success";
+  if (emotion === "surprised") return "surprised";
+  if (emotion === "frustrated") return "cancelled";
   return "idle";
 }
 
-function chooseIdleDrift(isMobile: boolean, bounds: DOMRect | undefined, fullScreen: boolean): Drift {
-  const horizontal = isMobile ? 18 : 42;
-  const vertical = isMobile ? 8 : 18;
-  if (fullScreen && bounds) {
-    const horizontalRange = isMobile ? bounds.width * 0.31 : bounds.width * 0.38;
-    const top = isMobile ? 108 : 126;
-    const bottom = Math.max(top, bounds.height - (isMobile ? 190 : 220));
-    return {
-      x: Math.round((Math.random() - 0.5) * horizontalRange * 2),
-      y: Math.round(top + Math.random() * (bottom - top)),
-      rotate: Number(((Math.random() - 0.5) * 8).toFixed(1)),
-      scale: Number((0.98 + Math.random() * 0.06).toFixed(3)),
-    };
-  }
-  return {
-    x: Math.round((Math.random() - 0.5) * horizontal * 2),
-    y: Math.round((Math.random() - 0.5) * vertical * 2),
-    rotate: Number(((Math.random() - 0.5) * 7).toFixed(1)),
-    scale: Number((0.985 + Math.random() * 0.04).toFixed(3)),
+function chooseTarget(bounds: DOMRect, keyboardOpen: boolean, name: TargetName): Target {
+  const width = bounds.width;
+  const safeBottom = bounds.height - (keyboardOpen ? 310 : 185);
+  const map: Record<TargetName, Target> = {
+    rest: { name: "rest", x: -width * .16, y: Math.min(210, safeBottom), rotate: -2, lookX: .1, lookY: .2 },
+    upperLeft: { name: "upperLeft", x: -width * .33, y: 118, rotate: -6, lookX: -.8, lookY: -.5 },
+    upperRight: { name: "upperRight", x: width * .3, y: 132, rotate: 6, lookX: .8, lookY: -.45 },
+    center: { name: "center", x: 0, y: Math.max(150, safeBottom * .46), rotate: 1, lookX: 0, lookY: .1 },
+    nearInput: { name: "nearInput", x: width * .22, y: Math.max(118, safeBottom), rotate: 4, lookX: .2, lookY: .9 },
+    lastMessage: { name: "lastMessage", x: width * .22, y: Math.max(165, safeBottom * .63), rotate: 3, lookX: .45, lookY: .25 },
+    response: { name: "response", x: -width * .18, y: Math.max(155, safeBottom * .54), rotate: -3, lookX: -.4, lookY: .18 },
   };
+  return map[name];
 }
 
-/**
- * Keeps the existing Pesadilla SVG intact while supplying movement, eye focus
- * and state-aware reactions. All timer work pauses as soon as the panel closes.
- */
+function nextIdleTarget(recent: TargetName[]): TargetName {
+  const candidates: TargetName[] = ["rest", "upperLeft", "upperRight", "center", "lastMessage", "response"];
+  const available = candidates.filter((candidate) => !recent.slice(-2).includes(candidate));
+  return available[Math.floor(Math.random() * available.length)] ?? "rest";
+}
+
+/** Stateful, transform-only mascot layer. It never owns pointer events or layout. */
 export function AnimatedAssistantMascot({
   state = "idle",
   isOpen,
@@ -66,162 +67,174 @@ export function AnimatedAssistantMascot({
   isStreaming = false,
   hasError = false,
   isListening = false,
+  inputFocused = false,
+  messageCount = 0,
+  scrollTick = 0,
   reducedMotion: reducedMotionOverride,
   fullScreen = false,
   className = "",
 }: AnimatedAssistantMascotProps) {
   const motionReduced = useReducedMotion();
-  const reduceMotion = Boolean(reducedMotionOverride ?? motionReduced);
+  const reducedMotion = Boolean(reducedMotionOverride ?? motionReduced);
   const stageRef = useRef<HTMLDivElement>(null);
-  const pointerResetRef = useRef<number | null>(null);
-  const pointerFrameRef = useRef<number | null>(null);
-  const pointerTargetRef = useRef({ x: 0, y: 0, lean: 0 });
+  const historyRef = useRef<TargetName[]>([]);
+  const timersRef = useRef<number[]>([]);
   const [visible, setVisible] = useState(true);
-  const [finePointer, setFinePointer] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [drift, setDrift] = useState<Drift>(rest);
-  const [look, setLook] = useState({ x: 0, y: 0, lean: 0 });
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [behavior, setBehavior] = useState<BehaviorState>("resting");
+  const [emotion, setEmotion] = useState<EmotionalState>("neutral");
   const [blink, setBlink] = useState(false);
-  const [microScale, setMicroScale] = useState(1);
 
-  const visualState: MascotState = hasError ? "error" : isListening ? "listening" : isStreaming ? "speaking" : isUserTyping && state === "idle" ? "listening" : state;
-  const isIdle = visualState === "idle";
-  const isAnimating = isOpen && visible && !reduceMotion;
+  const xTarget = useMotionValue(0);
+  const yTarget = useMotionValue(0);
+  const rotateTarget = useMotionValue(0);
+  const lookX = useMotionValue(0);
+  const lookY = useMotionValue(0);
+  const x = useSpring(xTarget, { stiffness: 42, damping: 15, mass: 1.08 });
+  const y = useSpring(yTarget, { stiffness: 38, damping: 16, mass: 1.2 });
+  const rotation = useSpring(rotateTarget, { stiffness: 70, damping: 16, mass: .85 });
+  const pupilX = useSpring(lookX, { stiffness: 210, damping: 22, mass: .3 });
+  const pupilY = useSpring(lookY, { stiffness: 210, damping: 22, mass: .3 });
+
+  const chatState: ChatState = !isOpen ? "closed" : hasError ? "error" : isListening ? "listening" : isStreaming ? "streaming" : isUserTyping || inputFocused ? "userTyping" : state === "thinking" || state === "sending" ? "thinking" : state === "success" || state === "happy" ? "completed" : "idle";
+  const active = isOpen && visible && !reducedMotion;
+  const mascotMood = moodFrom(chatState, emotion);
+
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach((timer) => window.clearTimeout(timer));
+    timersRef.current = [];
+  }, []);
+
+  const schedule = useCallback((callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((activeTimer) => activeTimer !== timer);
+      callback();
+    }, delay);
+    timersRef.current.push(timer);
+    return timer;
+  }, []);
+
+  const moveTo = useCallback((name: TargetName, intent: BehaviorState) => {
+    const bounds = stageRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const target = chooseTarget(bounds, keyboardOpen, name);
+    historyRef.current = [...historyRef.current.slice(-3), name];
+    setBehavior(intent);
+    lookX.set(target.lookX);
+    lookY.set(target.lookY);
+    animate(xTarget, target.x, { type: "spring", stiffness: 44, damping: 15, mass: 1.12 });
+    animate(yTarget, target.y, { type: "spring", stiffness: 40, damping: 16, mass: 1.26 });
+    animate(rotateTarget, target.rotate, { type: "spring", stiffness: 72, damping: 16, mass: .82 });
+  }, [keyboardOpen, lookX, lookY, rotateTarget, xTarget, yTarget]);
 
   useEffect(() => {
-    const updateEnvironment = () => {
-      setFinePointer(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+    const refresh = () => {
       setIsMobile(window.matchMedia("(max-width: 640px), (pointer: coarse)").matches);
+      setVisible(!document.hidden);
+      const viewport = window.visualViewport;
+      setKeyboardOpen(Boolean(viewport && window.innerHeight - viewport.height > 140));
     };
-    const updateVisibility = () => setVisible(!document.hidden);
-    updateEnvironment();
-    updateVisibility();
-    window.addEventListener("resize", updateEnvironment, { passive: true });
-    document.addEventListener("visibilitychange", updateVisibility);
+    refresh();
+    window.addEventListener("resize", refresh, { passive: true });
+    window.visualViewport?.addEventListener("resize", refresh, { passive: true });
+    document.addEventListener("visibilitychange", refresh);
     return () => {
-      window.removeEventListener("resize", updateEnvironment);
-      document.removeEventListener("visibilitychange", updateVisibility);
+      window.removeEventListener("resize", refresh);
+      window.visualViewport?.removeEventListener("resize", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 
   useEffect(() => {
-    if (!isAnimating || !isIdle) {
-      setDrift(rest);
-      return;
+    clearTimers();
+    if (!active) {
+      setBehavior("resting");
+      return clearTimers;
     }
-    let timeout = 0;
+    if (chatState === "userTyping" || chatState === "listening") {
+      setEmotion("curious");
+      moveTo("nearInput", "approaching");
+      return clearTimers;
+    }
+    if (chatState === "thinking") {
+      setEmotion("focused");
+      moveTo("upperRight", "thinking");
+      const orbit = () => {
+        moveTo(Math.random() > .5 ? "upperLeft" : "upperRight", "thinking");
+        schedule(orbit, 1800 + Math.round(Math.random() * 1300));
+      };
+      schedule(orbit, 1500);
+      return clearTimers;
+    }
+    if (chatState === "streaming") {
+      setEmotion("confident");
+      moveTo("response", "speaking");
+      return clearTimers;
+    }
+    if (chatState === "completed") {
+      setEmotion("excited");
+      moveTo("center", "celebrating");
+      schedule(() => { setEmotion("happy"); setBehavior("observing"); moveTo("rest", "observing"); }, 1100);
+      return clearTimers;
+    }
+    if (chatState === "error") {
+      setEmotion("frustrated");
+      moveTo("center", "recovering");
+      schedule(() => { setEmotion("neutral"); setBehavior("observing"); moveTo("rest", "observing"); }, 1700);
+      return clearTimers;
+    }
+    setEmotion("neutral");
     const wander = () => {
-      setDrift(chooseIdleDrift(isMobile, stageRef.current?.getBoundingClientRect(), fullScreen));
-      timeout = window.setTimeout(wander, fullScreen ? 2200 + Math.round(Math.random() * 2100) : 3600 + Math.round(Math.random() * 2600));
+      const target = nextIdleTarget(historyRef.current);
+      moveTo(target, "wandering");
+      schedule(() => setBehavior("observing"), 900);
+      schedule(wander, 2600 + Math.round(Math.random() * 2200));
     };
-    wander();
-    return () => window.clearTimeout(timeout);
-  }, [fullScreen, isAnimating, isIdle, isMobile]);
+    moveTo("rest", "resting");
+    schedule(wander, 1600);
+    const sleep = () => {
+      if (historyRef.current.length > 4) { setEmotion("sleepy"); setBehavior("sleeping"); moveTo("rest", "sleeping"); }
+    };
+    schedule(sleep, 33000);
+    return clearTimers;
+  }, [active, chatState, clearTimers, messageCount, moveTo, schedule, scrollTick]);
 
   useEffect(() => {
-    if (!isAnimating || !isIdle) {
-      setBlink(false);
-      setMicroScale(1);
-      return;
-    }
-    let timeout = 0;
-    const microAnimation = () => {
+    if (!active || chatState !== "idle") { setBlink(false); return; }
+    let cancelled = false;
+    const blinkLoop = () => {
+      if (cancelled) return;
       setBlink(true);
-      window.setTimeout(() => setBlink(false), 120);
-      if (Math.random() > 0.72) {
-        window.setTimeout(() => setBlink(true), 250);
-        window.setTimeout(() => setBlink(false), 370);
+      schedule(() => setBlink(false), 115);
+      if (Math.random() > .7) {
+        schedule(() => setBlink(true), 250);
+        schedule(() => setBlink(false), 365);
       }
-      if (Math.random() > 0.6) {
-        setMicroScale(1.045);
-        window.setTimeout(() => setMicroScale(1), 380);
-      }
-      timeout = window.setTimeout(microAnimation, 3100 + Math.round(Math.random() * 3600));
+      schedule(blinkLoop, 2900 + Math.round(Math.random() * 3200));
     };
-    timeout = window.setTimeout(microAnimation, 1800 + Math.round(Math.random() * 1800));
-    return () => window.clearTimeout(timeout);
-  }, [isAnimating, isIdle]);
-
-  useEffect(() => () => {
-    if (pointerResetRef.current) window.clearTimeout(pointerResetRef.current);
-    if (pointerFrameRef.current) window.cancelAnimationFrame(pointerFrameRef.current);
-  }, []);
-
-  const resetPointer = useCallback(() => {
-    if (pointerResetRef.current) window.clearTimeout(pointerResetRef.current);
-    if (pointerFrameRef.current) {
-      window.cancelAnimationFrame(pointerFrameRef.current);
-      pointerFrameRef.current = null;
-    }
-    pointerResetRef.current = window.setTimeout(() => setLook({ x: 0, y: 0, lean: 0 }), 80);
-  }, []);
-
-  const followPointer = useCallback((event: PointerEvent) => {
-    if (!finePointer || reduceMotion || !isOpen || !stageRef.current) return;
-    if (pointerResetRef.current) window.clearTimeout(pointerResetRef.current);
-    const bounds = stageRef.current.getBoundingClientRect();
-    const normalizedX = Math.max(-1, Math.min(1, (event.clientX - (bounds.left + bounds.width / 2)) / (bounds.width / 2)));
-    const normalizedY = Math.max(-1, Math.min(1, (event.clientY - (bounds.top + bounds.height / 2)) / (bounds.height / 2)));
-    pointerTargetRef.current = { x: Number((normalizedX * 1.35).toFixed(2)), y: Number((normalizedY * 0.72).toFixed(2)), lean: Number((normalizedX * 2.8).toFixed(2)) };
-    if (pointerFrameRef.current) return;
-    pointerFrameRef.current = window.requestAnimationFrame(() => {
-      pointerFrameRef.current = null;
-      setLook(pointerTargetRef.current);
-    });
-  }, [finePointer, isOpen, reduceMotion]);
+    schedule(blinkLoop, 1300 + Math.round(Math.random() * 1300));
+    return () => { cancelled = true; };
+  }, [active, chatState, schedule]);
 
   useEffect(() => {
-    if (!finePointer || reduceMotion || !isOpen || !visible) return;
-    const handlePointerMove = (event: PointerEvent) => followPointer(event);
-    const handlePointerLeave = () => resetPointer();
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("blur", handlePointerLeave);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("blur", handlePointerLeave);
-      resetPointer();
+    if (!active || isMobile) return;
+    const followPointer = (event: PointerEvent) => {
+      const bounds = stageRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      lookX.set(Math.max(-1, Math.min(1, (event.clientX - (bounds.left + bounds.width / 2)) / (bounds.width / 2))));
+      lookY.set(Math.max(-1, Math.min(1, (event.clientY - (bounds.top + bounds.height / 2)) / (bounds.height / 2))));
     };
-  }, [finePointer, followPointer, isOpen, reduceMotion, resetPointer, visible]);
-
-  const speaking = visualState === "speaking";
-  const thinking = visualState === "thinking";
-  const error = visualState === "error";
-  const success = visualState === "success" || visualState === "happy";
-  const activeDrift = reduceMotion ? rest : drift;
+    window.addEventListener("pointermove", followPointer, { passive: true });
+    return () => window.removeEventListener("pointermove", followPointer);
+  }, [active, isMobile, lookX, lookY]);
 
   return (
-    <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`}>
-      <motion.div
-        className="assistant-mascot-particles"
-        aria-hidden="true"
-        animate={isAnimating ? { opacity: thinking ? 1 : 0.58, rotate: thinking ? 360 : 0 } : { opacity: 0.35, rotate: 0 }}
-        transition={{ duration: thinking ? 5.6 : 1.2, repeat: thinking ? Infinity : 0, ease: "linear" }}
-      >
-        <i /><i /><i />
-      </motion.div>
-      <motion.div
-        className="assistant-mascot-motion"
-        animate={{
-          x: activeDrift.x,
-          y: activeDrift.y,
-          rotate: activeDrift.rotate + look.lean,
-          scale: activeDrift.scale * microScale,
-          skewX: activeDrift.rotate * 0.32,
-        }}
-        transition={{ type: "spring", stiffness: fullScreen ? 42 : 56, damping: fullScreen ? 13 : 15, mass: fullScreen ? 1.05 : 0.8 }}
-      >
-        <motion.div
-          animate={reduceMotion ? { opacity: 1 } : error ? { x: [0, -8, 8, -5, 0], rotate: [0, -4, 4, 0] } : success ? { y: [0, -12, 0, -7, 0], scale: [1, 1.12, .98, 1.06, 1] } : speaking ? { y: [0, -3, 0], scaleY: [1, 1.055, .99, 1], rotate: [0, 1.5, 0] } : thinking ? { y: [0, -5, 0], rotate: [0, 2.4, 0], scale: [1, 1.025, 1] } : { y: [0, -5, 0, -2, 0], rotate: [0, 1.5, -1, 0], scaleY: [1, 1.025, .99, 1] }}
-          transition={reduceMotion ? { duration: 0.2 } : error ? { duration: 0.58 } : { duration: speaking ? 0.7 : 2.35, repeat: success || error ? 0 : Infinity, ease: "easeInOut" }}
-        >
-          <PesadillaAvatar
-            size={fullScreen ? (isMobile ? 104 : 128) : 76}
-            active={isAnimating}
-            mood={toGhostMood(visualState)}
-            blink={blink}
-            lookX={reduceMotion ? 0 : look.x}
-            lookY={reduceMotion ? 0 : look.y}
-          />
+    <div ref={stageRef} className={`assistant-mascot-stage ${fullScreen ? "assistant-mascot-stage-full" : ""} ${className}`} data-behavior={behavior} data-emotion={emotion}>
+      <motion.div className="assistant-mascot-particles" aria-hidden="true" animate={active ? { opacity: chatState === "thinking" ? 1 : .68, rotate: chatState === "thinking" ? 360 : 0 } : { opacity: 0 }} transition={{ duration: chatState === "thinking" ? 4.8 : .3, repeat: chatState === "thinking" ? Infinity : 0, ease: "linear" }}><i /><i /><i /></motion.div>
+      <motion.div className="assistant-mascot-motion" style={{ x, y, rotate: rotation }}>
+        <motion.div animate={reducedMotion ? { opacity: 1 } : chatState === "error" ? { x: [0, -7, 8, -4, 0], scale: [1, .9, 1.03, 1] } : chatState === "completed" ? { y: [0, -12, 0, -7, 0], scale: [1, 1.11, .98, 1.05, 1] } : chatState === "streaming" ? { y: [0, -3, 0], scaleY: [1, 1.05, .99, 1] } : { y: [0, -5, 0, -2, 0], scaleY: [1, 1.025, .99, 1] }} transition={{ duration: chatState === "streaming" ? .72 : 2.25, repeat: chatState === "completed" || chatState === "error" || reducedMotion ? 0 : Infinity, ease: "easeInOut" }}>
+          <PesadillaAvatar size={fullScreen ? (isMobile ? 86 : 104) : 64} active={active} mood={mascotMood} blink={blink} lookX={pupilX} lookY={pupilY} />
         </motion.div>
       </motion.div>
     </div>

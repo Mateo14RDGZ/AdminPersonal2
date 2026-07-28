@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useMotionValue, useTransform, type MotionValue } from "motion/react";
 
 export type PesadillaMood = "idle" | "thinking" | "listening" | "ready" | "speaking" | "surprised" | "success" | "cancelled" | "error";
 
@@ -8,8 +8,8 @@ type PesadillaAvatarProps = {
   size?: number;
   active?: boolean;
   mood?: PesadillaMood;
-  lookX?: number;
-  lookY?: number;
+  lookX?: MotionValue<number>;
+  lookY?: MotionValue<number>;
   blink?: boolean;
 };
 
@@ -30,11 +30,13 @@ function expressionFor(mood: PesadillaMood) {
 }
 
 /** Semantic inline reconstruction of Pesadilla: flame, body, face and particles stay independently animatable. */
-export function PesadillaAvatar({ size = 42, active = false, mood = "idle", lookX = 0, lookY = 0, blink = false }: PesadillaAvatarProps) {
+export function PesadillaAvatar({ size = 42, active = false, mood = "idle", lookX, lookY, blink = false }: PesadillaAvatarProps) {
   const expression = expressionFor(mood);
   const eyeScale = blink ? 0.08 : expression.eyeScale;
-  const pupilX = Math.max(-2.8, Math.min(2.8, lookX * 1.7));
-  const pupilY = Math.max(-1.9, Math.min(1.9, lookY * 1.3));
+  const fallbackLookX = useMotionValue(0);
+  const fallbackLookY = useMotionValue(0);
+  const pupilX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-2.8, Math.min(2.8, value * 1.7)));
+  const pupilY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-1.9, Math.min(1.9, value * 1.3)));
 
   return (
     <span className={`pesadilla-avatar pesadilla-avatar-${mood} ${active ? "pesadilla-avatar-active" : ""}`} style={{ width: size, height: size }} aria-hidden="true">
@@ -68,11 +70,11 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle", look
 
         <motion.g data-part="left-eye" animate={{ scaleY: eyeScale }} transition={{ type: "spring", stiffness: 320, damping: 20 }} style={{ transformOrigin: "68px 124px" }}>
           <path d="M44 119c13-13 34-15 48 2-4 22-33 29-48-2Z" fill="url(#pesadilla-eye)" stroke="#7D20DB" strokeWidth="2" />
-          <motion.g data-part="left-pupil" animate={{ x: pupilX, y: pupilY }} transition={{ type: "spring", stiffness: 130, damping: 14 }}><ellipse cx="69" cy="129" rx="9" ry="13" fill="#0B061A" /><circle cx="65" cy="123" r="3.4" fill="white" /></motion.g>
+          <motion.g data-part="left-pupil" style={{ x: pupilX, y: pupilY }}><ellipse cx="69" cy="129" rx="9" ry="13" fill="#0B061A" /><circle data-part="left-highlight" cx="65" cy="123" r="3.4" fill="white" /></motion.g>
         </motion.g>
         <motion.g data-part="right-eye" animate={{ scaleY: eyeScale }} transition={{ type: "spring", stiffness: 320, damping: 20 }} style={{ transformOrigin: "132px 124px" }}>
           <path d="M156 119c-13-13-34-15-48 2 4 22 33 29 48-2Z" fill="url(#pesadilla-eye)" stroke="#7D20DB" strokeWidth="2" />
-          <motion.g data-part="right-pupil" animate={{ x: pupilX, y: pupilY }} transition={{ type: "spring", stiffness: 130, damping: 14 }}><ellipse cx="131" cy="129" rx="9" ry="13" fill="#0B061A" /><circle cx="127" cy="123" r="3.4" fill="white" /></motion.g>
+          <motion.g data-part="right-pupil" style={{ x: pupilX, y: pupilY }}><ellipse cx="131" cy="129" rx="9" ry="13" fill="#0B061A" /><circle data-part="right-highlight" cx="127" cy="123" r="3.4" fill="white" /></motion.g>
         </motion.g>
 
         <motion.g data-part="mouth" animate={{ y: mood === "success" ? -2 : 0, scaleX: mood === "success" ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 180, damping: 16 }} style={{ transformOrigin: "100px 158px" }}>
