@@ -6,9 +6,11 @@ import { IconPlus, IconWallet, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { Account } from "@/lib/database.types";
 import { BottomSheet } from "@/components/app-motion";
+import { loadAccounts, readCachedAccounts } from "@/lib/accounts-client";
 
 export function AccountsSection() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>(() => readCachedAccounts() ?? []);
+  const [loading, setLoading] = useState(() => !readCachedAccounts());
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [error, setError] = useState("");
@@ -22,11 +24,20 @@ export function AccountsSection() {
   const [mounted, setMounted] = useState(false);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/accounts", { cache: "no-store" });
-    if (response.ok) setAccounts(await response.json());
+    try {
+      const nextAccounts = await loadAccounts();
+      setAccounts(nextAccounts);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => void load(), [load]);
+  useEffect(() => {
+    void load();
+    const refresh = () => void loadAccounts({ refresh: true }).then(setAccounts).catch(() => undefined);
+    window.addEventListener("finance-data-changed", refresh);
+    return () => window.removeEventListener("finance-data-changed", refresh);
+  }, [load]);
   useEffect(() => setMounted(true), []);
 
   const closeForm = () => {
@@ -92,7 +103,8 @@ export function AccountsSection() {
         return;
       }
       closeForm();
-      await load();
+      const nextAccounts = await loadAccounts({ refresh: true });
+      setAccounts(nextAccounts);
       window.dispatchEvent(new Event("finance-data-changed"));
     } catch {
       setError("No se pudo conectar para guardar la cuenta.");
@@ -117,7 +129,8 @@ export function AccountsSection() {
         return;
       }
       closeForm();
-      await load();
+      const nextAccounts = await loadAccounts({ refresh: true });
+      setAccounts(nextAccounts);
       window.dispatchEvent(new Event("finance-data-changed"));
     } catch {
       setError("No se pudo conectar para eliminar la cuenta.");
@@ -138,6 +151,7 @@ export function AccountsSection() {
         </button>
       </div>
       <div className="space-y-2">
+        {loading ? <div className="skeleton h-16 rounded-[18px]" aria-label="Cargando cuentas" /> : null}
         {accounts.map((account) => (
           <button type="button" key={account.id} onClick={() => openEdit(account)} className="pressable app-card flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left" aria-label={`Editar ${account.name}`}>
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: `${account.color}1A`, color: account.color }}>

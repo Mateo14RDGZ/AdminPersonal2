@@ -24,7 +24,7 @@ function categoryPlan(compact: string, normalized: string): SimpleAssistantPlan 
   if (!/\b(categoria|category)\b/i.test(normalized) || !/\b(crea|crear|agrega|agregar|nueva|nuevo|add|create|new)\b/i.test(normalized)) return null;
   const name = compact.match(/\b(?:llamada|llamado|named)\s+(.+)$/i)?.[1]?.trim();
   if (!name || name.length > 60) return null;
-  const color = colorFor(compact);
+  const color = colorFor(compact) ?? "#64748B";
   if (!color) return { action: "reply", message: `¿Qué color querés para la categoría ${name}? Podés decir, por ejemplo, azul, naranja, violeta o un código como #4F6DF5.`, data: { ...emptyData, name } };
   return { action: "create_category", message: `Voy a crear la categoría ${name} con ese color. Confirmala para guardarla.`, data: { ...emptyData, name, color } };
 }

@@ -1,20 +1,23 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { IconArrowUpRight, IconBolt, IconCheck, IconMessageCircle, IconMicrophone, IconSparkles, IconX } from "@tabler/icons-react";
 
 type Message = { role: "assistant" | "user"; text: string };
-type Plan = {
-  action: "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
-  message: string;
-  data: { raw_text: string | null; account_id: string | null; category_id: string | null; name: string | null; institution: string | null; account_type: string | null; currency: string | null; amount: number | null; target_amount: number | null; date: string | null; color: string | null };
-};
+type Action = "reply" | "register_movement" | "create_account" | "create_category" | "update_account_balance" | "delete_account" | "add_savings_plan" | "add_income_plan" | "create_card" | "create_goal" | "create_recurring_payment" | "set_category_budget";
+type PlanData = { raw_text: string | null; account_id: string | null; category_id: string | null; name: string | null; institution: string | null; account_type: string | null; currency: string | null; amount: number | null; target_amount: number | null; date: string | null; color: string | null };
+type Plan = { action: Action; message: string; data: PlanData };
+type ConversationDraft = { action: Action | null; data: PlanData };
 type Props = { onRegistered: () => void };
 type SpeechRecognitionResultLike = { isFinal: boolean; 0: { transcript: string } };
 type SpeechRecognitionEventLike = { results: ArrayLike<SpeechRecognitionResultLike> };
 type SpeechRecognitionLike = { lang: string; continuous: boolean; interimResults: boolean; start: () => void; stop: () => void; onresult: ((event: SpeechRecognitionEventLike) => void) | null; onend: (() => void) | null; onerror: ((event: { error: string }) => void) | null };
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-const initialMessages: Message[] = [{ role: "assistant", text: "Contame que queres organizar. Te voy guiando paso a paso." }];
+
+const initialMessages: Message[] = [{ role: "assistant", text: "Contame qué querés organizar. Te guío y lo dejo listo para confirmar." }];
+const panelEase = [0.16, 1, 0.3, 1] as const;
 
 export function MoneyChat({ onRegistered }: Props) {
   const [text, setText] = useState("");
@@ -24,32 +27,58 @@ export function MoneyChat({ onRegistered }: Props) {
   const [listening, setListening] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [draft, setDraft] = useState<ConversationDraft | null>(null);
+  const [mounted, setMounted] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const resetConversation = () => { setPlan(null); setConversationActive(false); setMessages(initialMessages); setText(""); };
-  const suggestions = ["Configurar mis cuentas", "Agregar tarjeta", "Registrar mi sueldo"];
+  const closeTimerRef = useRef<number | null>(null);
+  const suggestions = ["Configurar mis cuentas", "Crear una categoría", "Registrar mi sueldo"];
 
-  useEffect(() => () => recognitionRef.current?.stop(), []);
+  useEffect(() => {
+    setMounted(true);
+    return () => {
+      recognitionRef.current?.stop();
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const closeConversation = () => {
+    setConversationActive(false);
+    setPlan(null);
+    setText("");
+    setDraft(null);
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = window.setTimeout(() => setMessages(initialMessages), 700);
+  };
 
   const sendText = async (rawText: string) => {
     const value = rawText.trim();
     if (!value || sending) return;
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
     setMessages((current) => [...current, { role: "user", text: value }]);
     setConversationActive(true);
     setText("");
     setSending(true);
     try {
-      const response = await fetch("/api/assistant", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: value, history: messages.slice(-8) }) });
+      const response = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: value, history: messages.slice(-16), draft }),
+      });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         setMessages((current) => [...current, { role: "assistant", text: typeof data?.error === "string" ? data.error : "No pude entender ese mensaje." }]);
         return;
       }
       const nextPlan = data.plan as Plan;
+      const nextDraft = data.draft as ConversationDraft | undefined;
       setMessages((current) => [...current, { role: "assistant", text: nextPlan.message }]);
       setPlan(nextPlan.action === "reply" ? null : nextPlan);
+      setDraft(nextDraft ?? { action: nextPlan.action === "reply" ? draft?.action ?? null : nextPlan.action, data: nextPlan.data });
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "No pude conectarme. Intentá nuevamente." }]);
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   };
 
   const send = (event: FormEvent) => {
@@ -110,39 +139,76 @@ export function MoneyChat({ onRegistered }: Props) {
         const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo registrar el movimiento.");
-        if (data.requiresConfirmation && data.confirmationUrl) { window.location.assign(data.confirmationUrl); return; }
-        setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Movimiento registrado." }]);
+        if (data.requiresConfirmation && data.confirmationUrl) {
+          window.location.assign(data.confirmationUrl);
+          return;
+        }
       } else {
         const response = await fetch("/api/assistant/execute", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo completar la acción.");
-        setMessages((current) => [...current, { role: "assistant", text: data.message ?? "Acción completada." }]);
       }
-      resetConversation();
       onRegistered();
       window.dispatchEvent(new Event("finance-data-changed"));
+      closeConversation();
     } catch (error) {
       setMessages((current) => [...current, { role: "assistant", text: error instanceof Error ? error.message : "No se pudo completar la acción." }]);
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   };
 
+  const composer = (expanded: boolean) => (
+    <form onSubmit={send} className={`relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015] ${expanded ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : ""}`}>
+      <input autoFocus={expanded} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
+      <button type="button" onClick={toggleDictation} disabled={sending} className={`pressable tap-target flex shrink-0 items-center justify-center rounded-2xl border ${listening ? "animate-pulse border-[var(--color-accent)] bg-[var(--color-accent)] text-white" : "border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-muted)]"}`} aria-label={listening ? "Detener dictado" : "Dictar mensaje"} aria-pressed={listening}><IconMicrophone size={20} /></button>
+      <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-black/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
+    </form>
+  );
+
   return (
-    <section className={`assistant-card app-card overflow-hidden ${conversationActive ? "assistant-card-conversation assistant-fullscreen" : ""}`}>
-      <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
-      <div className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-4">
-        <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-emerald-900/20"><IconSparkles size={21} stroke={2.2} /></span>
-        <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Escribí o hablá como hablás. Siempre te muestra el cambio antes de hacerlo.</p></div>
-        {conversationActive ? <button type="button" onClick={resetConversation} className="tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={20} /></button> : <IconMessageCircle className="text-[var(--color-muted)]" size={20} />}
-      </div>
-      <div className="relative flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Opciones de configuración">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</div>
-      <div className="relative max-h-52 space-y-2 overflow-y-auto px-4 pb-3" aria-live="polite">{messages.slice(-4).map((message, index) => <p key={`${message.role}-${index}`} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-text)] dark:bg-white/[0.08]"}`}>{message.text}</p>)}</div>
-      <form onSubmit={send} className="relative flex gap-2 border-t border-[var(--color-border)] bg-black/[0.012] p-3 dark:bg-white/[0.015]">
-        <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Ej: gasté 500 en nafta" className="app-input min-w-0 flex-1 border-transparent bg-[var(--color-surface-elevated)] py-2.5 shadow-sm" disabled={sending} />
-        <button type="button" onClick={toggleDictation} disabled={sending} className={`pressable tap-target flex shrink-0 items-center justify-center rounded-2xl border ${listening ? "animate-pulse border-[var(--color-accent)] bg-[var(--color-accent)] text-white" : "border-[var(--color-border)] bg-[var(--color-surface-elevated)] text-[var(--color-muted)]"}`} aria-label={listening ? "Detener dictado" : "Dictar mensaje"} aria-pressed={listening}><IconMicrophone size={20} /></button>
-        <button type="submit" disabled={!text.trim() || sending} className="pressable tap-target flex shrink-0 items-center justify-center rounded-2xl bg-[var(--color-accent)] text-white shadow-lg shadow-emerald-900/20 disabled:opacity-40" aria-label="Enviar mensaje"><IconArrowUpRight size={21} /></button>
-      </form>
-      {listening || voiceStatus ? <p className={`relative px-4 pb-3 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
-      {plan ? <div className="relative assistant-confirm mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={resetConversation} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></div> : null}
-    </section>
+    <>
+      <section className="assistant-card app-card overflow-hidden">
+        <div className="assistant-glow pointer-events-none absolute" aria-hidden="true" />
+        <div className="relative flex items-center gap-3 px-4 py-4">
+          <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"><IconSparkles size={21} stroke={2.2} /></span>
+          <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-[15px] font-semibold">Asistente financiero</h2><span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]"><IconBolt size={11} fill="currentColor" /> Listo</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Contame qué querés hacer; te propongo todo listo para confirmar.</p></div>
+          <IconMessageCircle className="text-[var(--color-muted)]" size={20} />
+        </div>
+        {composer(false)}
+      </section>
+
+      {mounted ? createPortal(
+        <MotionConfig reducedMotion="user">
+          <AnimatePresence>
+            {conversationActive ? (
+              <motion.section
+                className="fixed inset-0 z-[80] flex flex-col bg-[var(--color-surface)]"
+                initial={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
+                animate={{ opacity: 1, clipPath: "inset(0% 0% 0% round 0px)", scale: 1 }}
+                exit={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
+                transition={{ duration: 0.78, ease: panelEase }}
+                style={{ transformOrigin: "center bottom" }}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Asistente financiero"
+              >
+                <motion.header initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ delay: 0.16, duration: 0.42, ease: panelEase }} className="relative flex items-center gap-3 border-b border-[var(--color-border)] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+                  <span className="assistant-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white"><IconSparkles size={21} stroke={2.2} /></span>
+                  <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="text-base font-semibold">Asistente financiero</h2><span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--color-accent)]">En conversación</span></div><p className="mt-0.5 text-xs text-[var(--color-muted)]">Entiendo lenguaje cotidiano y preparo el cambio antes de guardarlo.</p></div>
+                  <button type="button" onClick={closeConversation} className="pressable tap-target flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label="Cerrar asistente"><IconX size={21} /></button>
+                </motion.header>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24, duration: 0.46, ease: panelEase }} className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-none" aria-label="Sugerencias">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void sendText(suggestion)} disabled={sending} className="pressable shrink-0 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs font-medium text-[var(--color-muted)]">{suggestion}</button>)}</motion.div>
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 pt-1" aria-live="polite">{messages.slice(-12).map((message, index) => <motion.p key={`${message.role}-${index}-${message.text}`} initial={{ opacity: 0, y: 8, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.26, ease: panelEase }} className={`w-fit max-w-[92%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-[var(--color-accent)] text-white" : "bg-black/[0.045] text-[var(--color-foreground)] dark:bg-white/[0.08]"}`}>{message.text}</motion.p>)}</div>
+                {listening || voiceStatus ? <p className={`px-4 pb-2 text-xs ${voiceStatus ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-accent)]"}`} aria-live="polite">{listening ? "Escuchando… hablá con naturalidad." : voiceStatus}</p> : null}
+                {plan ? <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={{ duration: 0.32, ease: panelEase }} className="mx-3 mb-3 flex items-center gap-2 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/8 p-2"><button type="button" onClick={() => void confirmPlan()} disabled={sending} className="pressable flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-3 text-sm font-semibold text-white"><IconCheck size={18} /> Confirmar</button><button type="button" onClick={closeConversation} disabled={sending} className="pressable tap-target flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 text-sm" aria-label="Cancelar acción"><IconX size={18} /></button></motion.div> : null}
+                {composer(true)}
+              </motion.section>
+            ) : null}
+          </AnimatePresence>
+        </MotionConfig>,
+        document.body
+      ) : null}
+    </>
   );
 }

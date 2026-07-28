@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/empty-state";
 import { MoneyChat } from "@/components/money-chat";
 import { formatCurrency, formatTime, monthKey, sourceLabel } from "@/lib/format";
 import type { TransactionWithCategory } from "@/lib/database.types";
+import { preloadAccounts } from "@/lib/accounts-client";
 
 type Summary = {
   totalSpent: number;
@@ -66,6 +67,7 @@ export default function InicioPage() {
 
   useEffect(() => {
     void load();
+    preloadAccounts();
     const refresh = () => void load();
     window.addEventListener("finance-data-changed", refresh);
     return () => window.removeEventListener("finance-data-changed", refresh);
