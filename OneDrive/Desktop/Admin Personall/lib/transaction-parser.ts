@@ -197,6 +197,10 @@ function extractAccountHints(text: string, type: TransactionType) {
   if (/\b(?:en|con)\s+(?:la\s+)?(?:cuenta\s+)?efectivo\b|\bcash\b/.test(text)) {
     return { accountHint: "efectivo", destinationAccountHint: null };
   }
+  const namedAccount = text.match(/\b(?:en|a)\s+(?:la\s+|mi\s+)?cuenta\s+([\p{L}\p{N} -]+?)(?:\s+(?:en|para|por)\s+|$)/u);
+  if (namedAccount?.[1]) {
+    return { accountHint: namedAccount[1].trim(), destinationAccountHint: null };
+  }
   const match = text.match(/\b(?:del|de la|desde)\s+([\p{L}\p{N} -]+?)\s+(?:en|para)\s+/u)
     ?? text.match(/\b(?:desde|con)\s+(?:mi |la |el )?([\p{L}\p{N} -]+?)(?:\s+(?:en|para)\s+|$)/u)
     ?? text.match(/\bcon\s+([\p{L}\p{N} -]+)$/u)

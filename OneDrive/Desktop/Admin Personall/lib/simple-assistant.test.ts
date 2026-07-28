@@ -10,6 +10,7 @@ describe("simpleAssistantPlan", () => {
   });
   it("routes movements with an explicit source account through the guided assistant", () => {
     expect(simpleAssistantPlan("Gasté 500 en efectivo en nafta")).toBeNull();
+    expect(simpleAssistantPlan("Gasté 500 con Itau en nafta")).toBeNull();
   });
   it("sends account setup to the guided assistant", () => {
     expect(simpleAssistantPlan("crea una cuenta llamada itau")).toBeNull();

@@ -184,10 +184,10 @@ export function MoneyChat({ onRegistered }: Props) {
             {conversationActive ? (
               <motion.section
                 className="fixed inset-0 z-[80] flex flex-col bg-[var(--color-surface)]"
-                initial={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
-                animate={{ opacity: 1, clipPath: "inset(0% 0% 0% round 0px)", scale: 1 }}
-                exit={{ opacity: 0, clipPath: "inset(60% 7% 8% round 28px)", scale: 0.96 }}
-                transition={{ duration: 0.96, ease: panelEase }}
+                initial={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
+                animate={{ opacity: 1, clipPath: "circle(150% at 50% 93%)", scale: 1 }}
+                exit={{ opacity: 0, clipPath: "circle(8% at 50% 93%)", scale: 0.94 }}
+                transition={{ duration: 1.08, ease: panelEase }}
                 style={{ transformOrigin: "center bottom" }}
                 role="dialog"
                 aria-modal="true"

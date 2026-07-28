@@ -64,6 +64,22 @@ function contentToJson(content: unknown): unknown {
   return JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
 }
 
+type AccountContext = { id: string; name: string; institution: string | null; type: string; currency: string };
+
+function explicitAccountMention(text: string, accounts: AccountContext[]) {
+  const normalized = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const cash = /\b(?:efectivo|cash)\b/.test(normalized);
+  const phrase = normalized.match(/\b(?:en|a|desde|con|del|de la)\s+(?:la |el |mi )?(?:cuenta )?([\p{L}\p{N} -]+?)(?:\s+(?:en|para|por)\s+|$)/u)?.[1]?.trim();
+  const hint = cash ? "efectivo" : phrase?.replace(/^cuenta\s+/, "") ?? null;
+  if (!hint) return { explicit: false, accountId: null, name: null };
+  const account = accounts.find((candidate) => {
+    const candidateName = candidate.name.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    const institution = (candidate.institution ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    return (cash && candidate.type === "CASH") || candidateName.includes(hint) || institution.includes(hint) || hint.includes(candidateName);
+  });
+  return { explicit: true, accountId: account?.id ?? null, name: hint };
+}
+
 export async function POST(request: NextRequest) {
   const session = await requireUser();
   if (session.error) return session.error;
@@ -108,8 +124,24 @@ export async function POST(request: NextRequest) {
     try { normalized = normalizePlan(contentToJson(result?.choices?.[0]?.message?.content), draft); } catch { normalized = null; }
     const parsed = normalized?.plan;
     if (!parsed) return NextResponse.json({ error: "No pude continuar esa conversación. Intentá responder con el dato que te pedí." }, { status: 422 });
+    const mentionedAccount = explicitAccountMention(text, (accounts.data ?? []) as AccountContext[]);
+    if (parsed.action === "register_movement" && mentionedAccount.explicit) {
+      if (!mentionedAccount.accountId) {
+        normalized = {
+          plan: {
+            action: "reply",
+            message: `No encuentro la cuenta ${mentionedAccount.name}. Puedo crearla y conservar este movimiento para registrarlo después.`,
+            data: parsed.data,
+          },
+          intendedAction: "register_movement",
+        };
+      } else {
+        normalized = { ...normalized!, plan: { ...parsed, data: { ...parsed.data, account_id: mentionedAccount.accountId } } };
+      }
+    }
     await logAssistantUsage(session.user.id, Number(result?.usage?.total_tokens ?? 0));
-    return NextResponse.json({ plan: parsed, draft: { action: normalized?.intendedAction ?? draft?.action ?? null, data: parsed.data }, requiresConfirmation: parsed.action !== "reply", remainingTokens: Math.max(0, limit - used - Number(result?.usage?.total_tokens ?? 0)), usedAI: true });
+    const finalPlan = normalized!.plan;
+    return NextResponse.json({ plan: finalPlan, draft: { action: normalized!.intendedAction ?? draft?.action ?? null, data: finalPlan.data }, requiresConfirmation: finalPlan.action !== "reply", remainingTokens: Math.max(0, limit - used - Number(result?.usage?.total_tokens ?? 0)), usedAI: true });
   } catch (error) {
     console.error("Assistant request failed", error);
     return NextResponse.json({ error: "No pude conectarme con la IA." }, { status: 502 });

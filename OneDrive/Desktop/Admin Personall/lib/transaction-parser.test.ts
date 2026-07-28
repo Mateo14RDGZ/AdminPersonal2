@@ -50,6 +50,12 @@ describe("LocalTransactionParser", () => {
     expect(result.accountHint).toBe("efectivo");
   });
 
+  it("recognizes a natural incoming payment directed to a named account", async () => {
+    const result = await transactionParser.parse({ text: "Me entraron 400 en la cuenta Scotiabank" });
+    expect(result.type).toBe("INCOME");
+    expect(result.accountHint).toBe("scotiabank");
+  });
+
   it("understands a casual spoken expense and account", async () => {
     const result = await transactionParser.parse({ text: "se me fueron 620 pesos desde el efectivo en Makelele" });
     expect(result.type).toBe("EXPENSE");
