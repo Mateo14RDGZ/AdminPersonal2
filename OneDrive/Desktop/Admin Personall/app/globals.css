@@ -242,11 +242,18 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   }
   .assistant-mascot-stage-full {
     position: absolute;
-    z-index: 20;
+    z-index: 999;
     inset: 0;
     height: auto;
+    overflow: visible;
+    isolation: isolate;
     pointer-events: none;
     touch-action: none;
+  }
+  .assistant-conversation > .assistant-mascot-stage-full {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 999 !important;
   }
   .assistant-conversation {
     --color-surface: #ffffff;
@@ -272,6 +279,7 @@ html[data-theme="light"] .sheet-panel { background: #ffffff; }
   }
   .assistant-mascot-motion {
     position: absolute;
+    z-index: 2;
     top: 10px;
     left: calc(50% - 38px);
     will-change: transform;
