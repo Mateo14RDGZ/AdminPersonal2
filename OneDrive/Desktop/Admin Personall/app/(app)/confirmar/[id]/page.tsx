@@ -13,6 +13,8 @@ type Payload = {
   destinationAccountId?: string | null;
   categoryId?: string | null;
   merchant?: string | null;
+  description?: string | null;
+  rawInput?: string | null;
   occurredAt?: string;
   source?: string;
 };
@@ -44,7 +46,10 @@ export default function ConfirmarPage() {
       }),
     ])
       .then(([pending, accountData, categoryData]) => {
-        setPayload(pending.parsed_payload ?? {});
+        const parsedPayload = pending.parsed_payload ?? {};
+        const rawInput = String(parsedPayload.rawInput ?? pending.raw_input ?? "").toLowerCase();
+        const fallbackDescription = /sueldo|salary/.test(rawInput) ? "Sueldo" : parsedPayload.type === "INCOME" ? "Ingreso" : parsedPayload.type === "TRANSFER" ? "Transferencia" : parsedPayload.type === "REFUND" ? "Devolución" : "Gasto";
+        setPayload({ ...parsedPayload, merchant: parsedPayload.merchant ?? parsedPayload.description ?? fallbackDescription });
         setAccounts(accountData);
         setCategories(categoryData);
       })
@@ -68,6 +73,7 @@ export default function ConfirmarPage() {
         destination_account_id: payload.destinationAccountId ?? null,
         category_id: payload.categoryId ?? null,
         merchant: payload.merchant ?? null,
+        description: payload.description ?? payload.merchant ?? null,
         occurred_at: payload.occurredAt ?? new Date().toISOString(),
         source: payload.source ?? "text",
         idempotency_key: crypto.randomUUID(),

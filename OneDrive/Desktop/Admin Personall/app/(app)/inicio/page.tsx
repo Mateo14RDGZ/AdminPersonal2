@@ -244,6 +244,7 @@ export default function InicioPage() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">
                     {transaction.merchant ||
+                      transaction.description ||
                       transaction.categories?.name ||
                       (transaction.type === "INCOME"
                         ? "Ingreso"

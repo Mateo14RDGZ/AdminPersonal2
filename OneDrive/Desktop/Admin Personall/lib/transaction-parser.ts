@@ -225,6 +225,20 @@ function extractMerchant(text: string, type: TransactionType): string | null {
   return itemMatch?.[1] ? titleCase(itemMatch[1]) : null;
 }
 
+function inferDescription(text: string, type: TransactionType, merchant: string | null, categoryHint: string | null): string {
+  if (merchant) return merchant;
+  if (/\b(sueldo|salary|nomina|n[oó]mina)\b/.test(text)) return "Sueldo";
+  if (/\b(aguinaldo|bonus|bono)\b/.test(text)) return "Aguinaldo o bono";
+  if (/\b(alquiler|renta)\b/.test(text)) return "Alquiler";
+  if (categoryHint) return categoryHint;
+  if (type === "INCOME") return "Ingreso";
+  if (type === "TRANSFER") return "Transferencia";
+  if (type === "REFUND") return "Devolución";
+  if (type === "LOAN_GIVEN") return "Préstamo";
+  if (type === "LOAN_RECEIVED") return "Cobro de préstamo";
+  return "Gasto";
+}
+
 function titleCase(value: string): string {
   return value
     .trim()
@@ -245,6 +259,7 @@ export class LocalTransactionParser {
     const hints = extractAccountHints(text, type);
     const merchant = extractMerchant(text, type);
     const categoryHint = detectCategory(text);
+    const description = inferDescription(text, type, merchant, categoryHint);
     let confidence = amount ? 0.72 : 0.35;
     if (merchant || categoryHint) confidence += 0.1;
     if (hints.accountHint || input.defaultAccountId) confidence += 0.08;
@@ -261,7 +276,7 @@ export class LocalTransactionParser {
       ...hints,
       merchant,
       categoryHint,
-      description: null,
+      description,
       occurredAt: detectDate(text, input.occurredAt),
       source: input.source ?? "text",
       status: confidence >= 0.85 ? "CONFIRMED" : "PENDING_REVIEW",

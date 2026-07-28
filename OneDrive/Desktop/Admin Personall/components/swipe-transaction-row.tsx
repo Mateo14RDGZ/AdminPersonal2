@@ -146,6 +146,7 @@ export function SwipeTransactionRow({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">
             {transaction.merchant ||
+              transaction.description ||
               transaction.note ||
               category?.name ||
               "Sin descripción"}

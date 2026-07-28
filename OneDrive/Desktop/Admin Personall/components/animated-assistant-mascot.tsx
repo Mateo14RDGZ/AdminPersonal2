@@ -121,8 +121,6 @@ export function AnimatedAssistantMascot({
     const deltaX = target.x - xTarget.get();
     const deltaY = target.y - yTarget.get();
     const distance = Math.hypot(deltaX, deltaY);
-    const direction = deltaX === 0 ? 0 : Math.sign(deltaX);
-    const travelStrength = Math.min(.12, .045 + distance / 1900);
     historyRef.current = [...historyRef.current.slice(-3), name];
     setBehavior(intent);
     lookX.set(target.lookX);
@@ -130,9 +128,11 @@ export function AnimatedAssistantMascot({
     animate(xTarget, target.x, { type: "spring", stiffness: 44, damping: 15, mass: 1.12 });
     animate(yTarget, target.y, { type: "spring", stiffness: 40, damping: 16, mass: 1.26 });
     animate(rotateTarget, target.rotate, { type: "spring", stiffness: 72, damping: 16, mass: .82 });
-    animate(stretchXTarget, 1 + travelStrength, { type: "spring", stiffness: 155, damping: 15, mass: .36 });
-    animate(stretchYTarget, 1 - travelStrength * .62, { type: "spring", stiffness: 145, damping: 16, mass: .38 });
-    animate(skewTarget, direction * Math.min(5.5, 2 + distance / 55), { type: "spring", stiffness: 150, damping: 15, mass: .36 });
+    // The supplied character artwork has a detailed face. Keep its aspect
+    // ratio intact while flying; posture comes from direction and rotation.
+    animate(stretchXTarget, 1, { type: "spring", stiffness: 155, damping: 15, mass: .36 });
+    animate(stretchYTarget, 1, { type: "spring", stiffness: 145, damping: 16, mass: .38 });
+    animate(skewTarget, 0, { type: "spring", stiffness: 150, damping: 15, mass: .36 });
     schedule(() => {
       animate(stretchXTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });
       animate(stretchYTarget, 1, { type: "spring", stiffness: 118, damping: 14, mass: .6 });

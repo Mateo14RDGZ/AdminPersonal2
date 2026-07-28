@@ -14,22 +14,22 @@ type PesadillaAvatarProps = {
 };
 
 function faceMotion(mood: PesadillaMood, blink: boolean) {
-  if (blink) return { scaleY: 0.94, scaleX: 1.015, filter: "brightness(.9) saturate(1.15)" };
-  if (mood === "thinking") return { scaleY: 1.015, scaleX: 0.99, filter: "brightness(.94) saturate(1.18)" };
-  if (mood === "listening") return { scaleY: 1.025, scaleX: 1.01, filter: "brightness(1.07) saturate(1.22)" };
-  if (mood === "speaking") return { scaleY: 1.035, scaleX: 1.012, filter: "brightness(1.08) saturate(1.3)" };
-  if (mood === "surprised") return { scaleY: 1.065, scaleX: 0.97, filter: "brightness(1.14) saturate(1.3)" };
-  if (mood === "success") return { scaleY: 1.025, scaleX: 1.04, filter: "brightness(1.16) saturate(1.38)" };
-  if (mood === "error" || mood === "cancelled") return { scaleY: 0.965, scaleX: 1.04, filter: "brightness(.82) saturate(.92)" };
-  return { scaleY: 1, scaleX: 1, filter: "brightness(1) saturate(1.05)" };
+  if (blink) return { scale: .99, filter: "brightness(.9) saturate(1.15)" };
+  if (mood === "thinking") return { scale: 1, filter: "brightness(.94) saturate(1.18)" };
+  if (mood === "listening") return { scale: 1.015, filter: "brightness(1.07) saturate(1.22)" };
+  if (mood === "speaking") return { scale: 1.012, filter: "brightness(1.08) saturate(1.3)" };
+  if (mood === "surprised") return { scale: 1.03, filter: "brightness(1.14) saturate(1.3)" };
+  if (mood === "success") return { scale: 1.025, filter: "brightness(1.16) saturate(1.38)" };
+  if (mood === "error" || mood === "cancelled") return { scale: 1, filter: "brightness(.82) saturate(.92)" };
+  return { scale: 1, filter: "brightness(1) saturate(1.05)" };
 }
 
 function AnimatedFace({ mood, blink, lookX, lookY }: Pick<PesadillaAvatarProps, "mood" | "blink" | "lookX" | "lookY">) {
   const activeMood = mood ?? "idle";
   const fallbackLookX = useMotionValue(0);
   const fallbackLookY = useMotionValue(0);
-  const eyesX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-1.8, Math.min(1.8, value * 1.8)));
-  const eyesY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-1.1, Math.min(1.1, value * 1.1)));
+  const eyesX = useTransform(lookX ?? fallbackLookX, (value) => Math.max(-.65, Math.min(.65, value * .65)));
+  const eyesY = useTransform(lookY ?? fallbackLookY, (value) => Math.max(-.4, Math.min(.4, value * .4)));
   const mouthKey = blink ? "blink" : activeMood;
   const showAlternateMouth = ["thinking", "speaking", "surprised", "ready", "success", "cancelled", "error"].includes(activeMood);
 
@@ -99,7 +99,7 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle", look
           src="/mascots/pesadilla-canonical.png"
           alt=""
           draggable={false}
-          animate={!active ? { rotate: 0, y: 0, scaleX: 1, scaleY: 1 } : mood === "success" ? { rotate: [0, -8, 7, 0], y: [0, -10, 0, -5, 0], scaleX: [1, 1.08, .94, 1.04, 1], scaleY: [1, .92, 1.1, .97, 1] } : mood === "cancelled" || mood === "error" ? { rotate: [0, -5, 6, -3, 0], x: [0, -4, 5, -2, 0], scaleX: [1, 1.07, .94, 1] } : mood === "thinking" ? { rotate: [-2, 3, -1, -2], y: [0, -3, 1, 0], scaleX: [1, .97, 1.02, 1] } : mood === "listening" ? { rotate: [0, 4, 2, 0], y: [0, -2, 0], scaleY: [1, 1.045, 1] } : mood === "ready" ? { rotate: [0, -2, 2, 0], y: [0, -4, 0], scaleX: [1, 1.025, 1] } : { rotate: [0, -0.85, 0.65, 0], y: [0, -1.25, 0.8, 0] }}
+          animate={!active ? { rotate: 0, y: 0, scale: 1 } : mood === "success" ? { rotate: [0, -8, 7, 0], y: [0, -10, 0, -5, 0], scale: [1, 1.06, .98, 1.035, 1] } : mood === "cancelled" || mood === "error" ? { rotate: [0, -5, 6, -3, 0], x: [0, -4, 5, -2, 0], scale: [1, 1.025, .985, 1] } : mood === "thinking" ? { rotate: [-2, 3, -1, -2], y: [0, -3, 1, 0], scale: [1, .99, 1.01, 1] } : mood === "listening" ? { rotate: [0, 4, 2, 0], y: [0, -2, 0], scale: [1, 1.025, 1] } : mood === "ready" ? { rotate: [0, -2, 2, 0], y: [0, -4, 0], scale: [1, 1.02, 1] } : { rotate: [0, -0.85, 0.65, 0], y: [0, -1.25, 0.8, 0] }}
           transition={{ duration: mood === "success" ? .9 : mood === "cancelled" || mood === "error" ? .58 : mood === "thinking" ? 1.45 : 2.65, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}
         />
         <AnimatedFace mood={mood} blink={blink} lookX={lookX} lookY={lookY} />
