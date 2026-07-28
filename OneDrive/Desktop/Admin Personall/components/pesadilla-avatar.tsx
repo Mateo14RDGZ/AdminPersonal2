@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type MotionValue } from "motion/react";
+import { AnimatePresence, motion, type MotionValue } from "motion/react";
 
 export type PesadillaMood = "idle" | "thinking" | "listening" | "ready" | "speaking" | "surprised" | "success" | "cancelled" | "error";
 
@@ -20,6 +20,8 @@ type PesadillaAvatarProps = {
  */
 export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: PesadillaAvatarProps) {
   const isError = mood === "error" || mood === "cancelled";
+  const frame = mood === "idle" ? "canonical" : mood === "cancelled" ? "error" : mood;
+  const source = frame === "canonical" ? "/mascots/pesadilla-canonical.png" : `/mascots/pesadilla-${frame}.png`;
   const animation = !active
     ? { x: 0, y: 0, rotate: 0, scale: 1 }
     : mood === "success"
@@ -41,14 +43,19 @@ export function PesadillaAvatar({ size = 42, active = false, mood = "idle" }: Pe
 
   return (
     <span className={`pesadilla-avatar pesadilla-avatar-${mood} ${active ? "pesadilla-avatar-active" : ""}`} style={{ width: size, height: size }} aria-hidden="true">
-      <motion.img
-        src="/mascots/pesadilla-canonical.png"
-        alt=""
-        draggable={false}
-        className="pesadilla-avatar-original"
-        animate={animation}
-        transition={{ duration, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}
-      />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.img
+          key={frame}
+          src={source}
+          alt=""
+          draggable={false}
+          className="pesadilla-avatar-original"
+          initial={{ opacity: 0, scale: .9, filter: "blur(1px)" }}
+          animate={{ ...animation, opacity: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, scale: .92, filter: "blur(.7px)" }}
+          transition={{ duration, repeat: active && !["success", "cancelled", "error"].includes(mood) ? Infinity : 0, ease: "easeInOut" }}
+        />
+      </AnimatePresence>
     </span>
   );
 }
