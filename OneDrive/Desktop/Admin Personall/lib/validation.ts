@@ -162,6 +162,10 @@ export const recurringTransactionSchema = z.object({
   auto_create: z.boolean().default(false),
 });
 
+export const recurringTransactionUpdateSchema = recurringTransactionSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
 export const pushSubscribeSchema = z.object({
   endpoint: z.string().url(),
   keys: z.object({

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { IconCalendarRepeat, IconPlus, IconX } from "@tabler/icons-react";
+import { IconCalendarRepeat, IconPencil, IconPlus, IconX } from "@tabler/icons-react";
 import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/format";
 import type { Account, RecurringTransaction } from "@/lib/database.types";
 import { BottomSheet } from "@/components/app-motion";
@@ -15,6 +15,9 @@ export function RecurringSection() {
   const [currency, setCurrency] = useState("UYU");
   const [accountId, setAccountId] = useState("");
   const [nextDate, setNextDate] = useState(new Date().toISOString().slice(0, 10));
+  const [frequency, setFrequency] = useState<RecurringTransaction["frequency"]>("MONTHLY");
+  const [editing, setEditing] = useState<RecurringTransaction | null>(null);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const [recurringResponse, accountsResponse] = await Promise.all([
@@ -26,26 +29,40 @@ export function RecurringSection() {
   }, []);
   useEffect(() => void load(), [load]);
 
+  const resetForm = () => {
+    setMerchant(""); setAmount(""); setCurrency("UYU"); setAccountId("");
+    setNextDate(new Date().toISOString().slice(0, 10)); setFrequency("MONTHLY"); setEditing(null); setError("");
+  };
+  const openForCreate = () => { resetForm(); setOpen(true); };
+  const openForEdit = (item: RecurringTransaction) => {
+    setEditing(item); setMerchant(item.merchant ?? item.description ?? ""); setAmount(String(item.amount));
+    setCurrency(item.currency); setAccountId(item.account_id ?? ""); setNextDate(item.next_execution_date); setFrequency(item.frequency); setError(""); setOpen(true);
+  };
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const response = await fetch("/api/recurring", {
-      method: "POST",
+      method: editing ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(editing ? { id: editing.id } : {}),
         type: "EXPENSE",
         merchant,
         amount: Number(amount),
         currency,
         account_id: accountId,
-        frequency: "MONTHLY",
+        frequency,
         next_execution_date: nextDate,
         auto_create: false,
       }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      setError(typeof data?.error === "string" ? data.error : "No se pudo guardar el próximo pago.");
+      return;
+    }
     setOpen(false);
-    setMerchant("");
-    setAmount("");
+    resetForm();
     await load();
     window.dispatchEvent(new Event("finance-data-changed"));
   };
@@ -59,7 +76,7 @@ export function RecurringSection() {
             Recurrentes y calendario financiero
           </p>
         </div>
-        <button type="button" onClick={() => setOpen(true)} className="tap-target flex items-center justify-center text-[var(--color-accent)]" aria-label="Nuevo pago recurrente">
+        <button type="button" onClick={openForCreate} className="tap-target flex items-center justify-center text-[var(--color-accent)]" aria-label="Nuevo pago recurrente">
           <IconPlus size={22} />
         </button>
       </div>
@@ -73,12 +90,13 @@ export function RecurringSection() {
             </p>
           </div>
           <p className="font-semibold">{formatCurrency(Number(item.amount), item.currency)}</p>
+          <button type="button" onClick={() => openForEdit(item)} className="tap-target ml-1 flex items-center justify-center rounded-xl text-[var(--color-muted)]" aria-label={`Editar ${item.merchant ?? item.description ?? "pago"}`}><IconPencil size={18} /></button>
         </div>
       ))}
       <BottomSheet open={open} labelledBy="recurring-sheet-title">
             <div className="flex items-center justify-between">
-              <h3 id="recurring-sheet-title" className="text-xl font-semibold">Pago mensual</h3>
-              <button type="button" onClick={() => setOpen(false)} className="tap-target flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10" aria-label="Cerrar"><IconX size={19} /></button>
+              <h3 id="recurring-sheet-title" className="text-xl font-semibold">{editing ? "Editar próximo pago" : "Nuevo próximo pago"}</h3>
+              <button type="button" onClick={() => { setOpen(false); resetForm(); }} className="tap-target flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10" aria-label="Cerrar"><IconX size={19} /></button>
             </div>
             <form onSubmit={save} className="mt-5 space-y-3">
               <input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Servicio o comercio" required className="app-input" />
@@ -92,8 +110,12 @@ export function RecurringSection() {
                 <option value="">Elegir cuenta</option>
                 {accounts.filter((account) => account.currency === currency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringTransaction["frequency"])} className="app-input">
+                <option value="MONTHLY">Mensual</option><option value="WEEKLY">Semanal</option><option value="YEARLY">Anual</option><option value="DAILY">Diario</option>
+              </select>
               <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required className="app-input" />
-              <button type="submit" className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white">Guardar próximo pago</button>
+              {error ? <p className="px-1 text-sm text-red-500">{error}</p> : null}
+              <button type="submit" className="pressable min-h-13 w-full rounded-2xl bg-[var(--color-accent)] font-semibold text-white">{editing ? "Guardar cambios" : "Guardar próximo pago"}</button>
             </form>
       </BottomSheet>
     </section>
