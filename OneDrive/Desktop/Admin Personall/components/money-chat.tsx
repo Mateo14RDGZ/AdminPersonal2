@@ -198,12 +198,20 @@ export function MoneyChat({ onRegistered }: Props) {
     setSending(true);
     try {
       if (plan.action === "register_movement") {
+        if (!plan.data.account_id) throw new Error("Elegí una cuenta antes de confirmar el movimiento.");
+        const availableAccounts = accounts.length ? accounts : await loadAccounts().catch(() => [] as Account[]);
+        if (!availableAccounts.some((account) => account.id === plan.data.account_id)) {
+          throw new Error("La cuenta elegida ya no está disponible. Elegí otra cuenta.");
+        }
         const response = await fetch("/api/parse-transaction", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: plan.data.raw_text, source: "text", timezone: "America/Montevideo", dryRun: false, defaultAccountId: plan.data.account_id, defaultCurrency: plan.data.currency ?? "UYU", idempotencyKey: crypto.randomUUID() }) });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "No se pudo registrar el movimiento.");
         if (data.requiresConfirmation && data.confirmationUrl) {
           window.location.assign(data.confirmationUrl);
           return;
+        }
+        if (!data?.transaction?.account_id || data.transaction.account_id !== plan.data.account_id) {
+          throw new Error("El movimiento no quedó asociado a la cuenta seleccionada. No se guardó ningún cambio.");
         }
       } else {
         const response = await fetch("/api/assistant/execute", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
@@ -222,9 +230,11 @@ export function MoneyChat({ onRegistered }: Props) {
     }
   };
 
+  const plannedAccountId = plan?.action === "register_movement" ? plan.data.account_id : null;
+  const hasValidMovementAccount = Boolean(plannedAccountId && accounts.some((account) => account.id === plannedAccountId));
   const movementNeedsAccount = Boolean(
     (draft?.action === "register_movement" || plan?.action === "register_movement") &&
-    !(plan?.action === "register_movement" && plan.data.account_id)
+    !hasValidMovementAccount
   );
 
   const selectMovementAccount = (account: Account) => {

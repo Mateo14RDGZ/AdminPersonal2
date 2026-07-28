@@ -71,6 +71,16 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId),
   ]);
 
+  const selectedAccount = parsedBody.data.defaultAccountId
+    ? (accounts ?? []).find((candidate) => candidate.id === parsedBody.data.defaultAccountId) ?? null
+    : null;
+  if (parsedBody.data.defaultAccountId && !selectedAccount) {
+    return NextResponse.json({ error: "La cuenta seleccionada ya no está disponible." }, { status: 409 });
+  }
+  if (selectedAccount && selectedAccount.currency !== interpretation.currency) {
+    return NextResponse.json({ error: `La cuenta seleccionada usa ${selectedAccount.currency}, pero el movimiento está en ${interpretation.currency}.` }, { status: 409 });
+  }
+
   const currencyAccounts = (accounts ?? []).filter(
     (account) => account.currency === interpretation.currency
   );
@@ -86,11 +96,12 @@ export async function POST(request: NextRequest) {
     : null;
   // An explicit source account is a safety instruction, never a suggestion.
   // If it does not match, leave the movement pending instead of using a default account.
-  const account = hint
-    ? accountFromHint
-    : (parsedBody.data.defaultAccountId
-      ? currencyAccounts.find((candidate) => candidate.id === parsedBody.data.defaultAccountId)
-      : null) ?? currencyAccounts.find((candidate) => candidate.is_default) ?? (currencyAccounts.length === 1 ? currencyAccounts[0] : null);
+  // A choice made in the assistant account picker is authoritative. Parser
+  // hints are only used when the caller did not explicitly select an account.
+  const account = selectedAccount
+    ?? (hint
+      ? accountFromHint
+      : currencyAccounts.find((candidate) => candidate.is_default) ?? (currencyAccounts.length === 1 ? currencyAccounts[0] : null));
 
   const destinationHint = interpretation.destinationAccountHint
     ? normalizeText(interpretation.destinationAccountHint)

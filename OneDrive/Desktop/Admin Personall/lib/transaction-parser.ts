@@ -248,8 +248,11 @@ export class LocalTransactionParser {
     let confidence = amount ? 0.72 : 0.35;
     if (merchant || categoryHint) confidence += 0.1;
     if (hints.accountHint || input.defaultAccountId) confidence += 0.08;
-    if (type !== "EXPENSE" || /\b(gaste|pague|compre|anota|spent|paid|bought)\b/.test(text))
-      confidence += 0.06;
+    const explicitExpense = /\b(gaste|gasto|pague|compre|anota|se me fueron|me cobraron|spent|paid|bought)\b/.test(text);
+    const explicitIncome = /\b(cobre|depositaron|recibi|me entraron|me pagaron|me ingresaron|i received|received|salary|income|earned|got paid)\b/.test(text);
+    if ((type === "EXPENSE" && explicitExpense) || (type === "INCOME" && explicitIncome)) {
+      confidence += 0.12;
+    }
 
     return {
       type,

@@ -69,4 +69,13 @@ describe("LocalTransactionParser", () => {
     expect(result.type).toBe("INCOME");
     expect(result.amount).toBe(38600);
   });
+
+  it("marks clear expenses and incoming payments as ready once an account is selected", async () => {
+    const [expense, income] = await Promise.all([
+      transactionParser.parse({ text: "Gasté 500 en nafta", defaultAccountId: "00000000-0000-4000-8000-000000000001" }),
+      transactionParser.parse({ text: "Me entraron 400 en la cuenta Scotiabank", defaultAccountId: "00000000-0000-4000-8000-000000000002" }),
+    ]);
+    expect(expense.status).toBe("CONFIRMED");
+    expect(income.status).toBe("CONFIRMED");
+  });
 });
